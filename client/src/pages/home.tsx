@@ -593,6 +593,24 @@ export default function Home() {
               {/* [How To Download] Header */}
               <h2 className="text-xl font-bold text-primary">[How To Download]</h2>
 
+              {/* Main Title - Big Title like MoviesDrive */}
+              <div className="flex items-start gap-2">
+                <h1 className="text-2xl font-bold leading-tight">
+                  {movieDetails.title}
+                </h1>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(movieDetails.title);
+                    toast({ title: "Copied", description: "Title copied" });
+                  }}
+                  data-testid="button-copy-title"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+
               {/* Intro paragraph */}
               <p className="text-sm">
                 Download <strong>{movieDetails.title}</strong> [{" "}
