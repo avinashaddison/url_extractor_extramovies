@@ -12,9 +12,65 @@ import {
   Download, 
   ArrowLeft,
   RefreshCw,
-  Link2
+  Link2,
+  ChevronRight
 } from "lucide-react";
 import type { MovieListResult, LinkFinderResult, MoviePost } from "@shared/schema";
+
+function MovieSection({ 
+  title, 
+  movies, 
+  onMovieClick 
+}: { 
+  title: string; 
+  movies: MoviePost[]; 
+  onMovieClick: (post: MoviePost) => void;
+}) {
+  if (movies.length === 0) return null;
+  
+  return (
+    <section className="mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <h2 className="text-xl font-semibold">{title}</h2>
+        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {movies.slice(0, 5).map((post, index) => (
+          <div
+            key={index}
+            className="cursor-pointer group"
+            onClick={() => onMovieClick(post)}
+            data-testid={`card-movie-${index}`}
+          >
+            <div className="relative aspect-[2/3] rounded-md overflow-hidden bg-muted mb-2">
+              {post.thumbnail ? (
+                <img
+                  src={post.thumbnail}
+                  alt={post.title}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Film className="w-12 h-12 text-muted-foreground/30" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform">
+                <p className="text-white text-xs font-medium line-clamp-2">
+                  {post.title}
+                </p>
+              </div>
+            </div>
+            <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors" title={post.title}>
+              {post.title}
+            </h3>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function Home() {
   const [selectedPost, setSelectedPost] = useState<MoviePost | null>(null);
@@ -77,6 +133,42 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  // Categorize movies
+  const categorizeMovies = (posts: MoviePost[]) => {
+    const latest: MoviePost[] = [];
+    const bollywood: MoviePost[] = [];
+    const hollywood: MoviePost[] = [];
+    const series: MoviePost[] = [];
+    const other: MoviePost[] = [];
+
+    posts.forEach((post, index) => {
+      const title = post.title.toLowerCase();
+      
+      // First 5 are latest
+      if (index < 5) {
+        latest.push(post);
+        return;
+      }
+      
+      // Categorize rest
+      if (title.includes('season') || title.includes('series') || title.includes('episode')) {
+        series.push(post);
+      } else if (title.includes('hindi') && !title.includes('english')) {
+        bollywood.push(post);
+      } else if (title.includes('english') || title.includes('bluray')) {
+        hollywood.push(post);
+      } else {
+        other.push(post);
+      }
+    });
+
+    return { latest, bollywood, hollywood, series, other };
+  };
+
+  const categories = moviesQuery.data?.posts 
+    ? categorizeMovies(moviesQuery.data.posts) 
+    : { latest: [], bollywood: [], hollywood: [], series: [], other: [] };
+
   if (selectedPost) {
     return (
       <div className="min-h-screen bg-background">
@@ -91,16 +183,27 @@ export default function Home() {
             Back to Movies
           </Button>
 
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <h1 className="text-xl font-semibold mb-2" data-testid="text-post-title">
+          <div className="flex gap-6 mb-6">
+            {selectedPost.thumbnail && (
+              <div className="w-48 flex-shrink-0">
+                <div className="aspect-[2/3] rounded-md overflow-hidden bg-muted">
+                  <img
+                    src={selectedPost.thumbnail}
+                    alt={selectedPost.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex-1">
+              <h1 className="text-2xl font-semibold mb-3" data-testid="text-post-title">
                 {selectedPost.title}
               </h1>
-              <p className="text-sm text-muted-foreground font-mono truncate">
+              <p className="text-sm text-muted-foreground font-mono break-all">
                 {selectedPost.url}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <Card>
             <CardContent className="pt-6">
@@ -198,8 +301,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[1200px] mx-auto px-4 py-8">
-        <header className="mb-8 text-center">
+      <div className="max-w-[1400px] mx-auto px-4 py-8">
+        <header className="mb-10 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
               <Film className="w-8 h-8 text-primary" />
@@ -213,7 +316,7 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
               {moviesQuery.data?.totalFound || 0} movies indexed
@@ -249,31 +352,32 @@ export default function Home() {
         )}
 
         {moviesQuery.data?.posts && moviesQuery.data.posts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {moviesQuery.data.posts.map((post, index) => (
-              <Card
-                key={index}
-                className="cursor-pointer hover-elevate overflow-visible"
-                onClick={() => handlePostClick(post)}
-                data-testid={`card-movie-${index}`}
-              >
-                <CardContent className="p-4">
-                  {post.thumbnail && (
-                    <div className="aspect-video mb-3 rounded-md overflow-hidden bg-muted">
-                      <img
-                        src={post.thumbnail}
-                        alt={post.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  )}
-                  <h3 className="font-medium text-sm line-clamp-2" title={post.title}>
-                    {post.title}
-                  </h3>
-                </CardContent>
-              </Card>
-            ))}
+          <div>
+            <MovieSection 
+              title="Latest Updates" 
+              movies={categories.latest} 
+              onMovieClick={handlePostClick} 
+            />
+            <MovieSection 
+              title="Hollywood" 
+              movies={categories.hollywood} 
+              onMovieClick={handlePostClick} 
+            />
+            <MovieSection 
+              title="Bollywood" 
+              movies={categories.bollywood} 
+              onMovieClick={handlePostClick} 
+            />
+            <MovieSection 
+              title="Web Series" 
+              movies={categories.series} 
+              onMovieClick={handlePostClick} 
+            />
+            <MovieSection 
+              title="More Movies" 
+              movies={categories.other} 
+              onMovieClick={handlePostClick} 
+            />
           </div>
         )}
 
