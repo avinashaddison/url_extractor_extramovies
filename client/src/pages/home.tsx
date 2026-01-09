@@ -676,23 +676,16 @@ export default function Home() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(movieDetails.posterImage!);
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${movieDetails.title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        toast({ title: "Downloaded", description: "Poster image downloaded" });
-                      } catch (error) {
-                        window.open(movieDetails.posterImage, '_blank');
-                        toast({ title: "Opened", description: "Image opened in new tab for download" });
-                      }
+                    onClick={() => {
+                      const filename = `${movieDetails.title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`;
+                      const downloadUrl = `/api/download-image?url=${encodeURIComponent(movieDetails.posterImage!)}&filename=${encodeURIComponent(filename)}`;
+                      const a = document.createElement('a');
+                      a.href = downloadUrl;
+                      a.download = filename;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      toast({ title: "Downloading", description: "Poster download started" });
                     }}
                     className="gap-2"
                     data-testid="button-download-poster"
