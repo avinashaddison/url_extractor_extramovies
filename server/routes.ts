@@ -272,11 +272,11 @@ function generateWordPressContent(details: MovieDetails): string {
     content += `</p>\n\n`;
   }
   
-  // Download Links - Each as H3 heading with download button
+  // Download Links - Each as H3 heading with MaxButton shortcode
   if (details.downloadLinks.length > 0) {
     for (const link of details.downloadLinks) {
       content += `<h3>${link.label}</h3>\n`;
-      content += `<p><a href="${link.url}" target="_blank" rel="nofollow noopener">DOWNLOAD NOW</a></p>\n\n`;
+      content += `[maxbutton id="8" text="DOWNLOAD NOW" url="${link.url}"]\n\n`;
     }
   }
   
