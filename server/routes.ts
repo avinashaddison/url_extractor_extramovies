@@ -142,10 +142,14 @@ function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
     }
   }
 
-  // Extract mdrive links
-  const urlRegex = /https?:\/\/[^\s"'<>()\\]+mdrive\.today[^\s"'<>()\\]*/gi;
-  const allUrls = html.match(urlRegex) || [];
-  const uniqueLinks = Array.from(new Set(allUrls.map(link => link.replace(/[\\'"]+$/, ''))));
+  // Extract mdrive links - using href attribute pattern for reliability
+  const hrefRegex = /href="(https?:\/\/mdrive\.today[^"]+)"/gi;
+  const allUrls: string[] = [];
+  let urlMatch;
+  while ((urlMatch = hrefRegex.exec(html)) !== null) {
+    allUrls.push(urlMatch[1]);
+  }
+  const uniqueLinks = Array.from(new Set(allUrls));
 
   // Match labels with links (they typically appear in order)
   for (let i = 0; i < uniqueLinks.length; i++) {
