@@ -130,6 +130,20 @@ function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
     details.director = decodeHtml(directorMatch[1]).trim();
   }
 
+  // Extract Storyline/Plot - look for common patterns
+  const storyPatterns = [
+    /<strong>Story(?:line)?[:\s]*<\/strong>\s*([^<]+)/i,
+    /<p[^>]*>(?:Story(?:line)?|Plot|Synopsis)[:\s]*([^<]{50,500})/i,
+    /class="entry-content"[^>]*>[\s\S]*?<p>([^<]{100,500})<\/p>/i,
+  ];
+  for (const pattern of storyPatterns) {
+    const storyMatch = html.match(pattern);
+    if (storyMatch && storyMatch[1]) {
+      details.storyline = decodeHtml(storyMatch[1]).trim();
+      break;
+    }
+  }
+
   // Extract download links with labels from h5 headings
   // Find all h5 tags that contain download quality info
   const h5Regex = /<h5[^>]*>([^<]*(?:480p|720p|1080p|2160p|4k)[^<]*)<\/h5>/gi;
@@ -164,60 +178,78 @@ function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
 }
 
 function generateWordPressContent(details: MovieDetails): string {
+  // Extract short movie name from title (before year)
+  const shortName = details.title.replace(/\s*\(\d{4}\).*$/, '').trim();
+  const imdbRating = details.imdbRating || '7.0/10';
+  
   let content = '';
 
-  // Poster image
+  // [How To Download] Section
+  content += `<p>[How To Download]</p>\n\n`;
+  
+  // Intro paragraph
+  content += `<p>Download ${details.title}, based on ${details.genre || 'Drama'} and Available In ${details.language || 'Hindi'} available</p>\n\n`;
+  
+  // Poster image centered
   if (details.posterImage) {
-    content += `<p style="text-align: center;"><img src="${details.posterImage}" alt="${details.title}" /></p>\n\n`;
+    content += `<p style="text-align: center;"><img src="${details.posterImage}" alt="${shortName}" /></p>\n\n`;
   }
-
-  // Movie info section
-  content += `<h3>Movie Info</h3>\n`;
-  content += `<ul>\n`;
-  if (details.imdbRating) {
-    content += `<li><strong>IMDB Rating:</strong> ${details.imdbRating}</li>\n`;
-  }
+  
+  // Download header
+  content += `<h3>Download ${shortName}</h3>\n\n`;
+  
+  // Platform intro
+  content += `<p>Extra movies is the best online platform for downloading Bollywood and India movies and WEB Series. We also provide south movies like Hindi Dubbed, Tamil, Telugu, Malayalam, Punjabi, and other local Movies. We offer direct G-Drive download links for fast and secure downloading. Click the download button below and follow the steps to start the download.</p>\n\n`;
+  
+  // Movie Information Section
+  content += `<h3>Movie Information</h3>\n`;
+  content += `<p><strong>iMDB Rating:</strong> ${imdbRating}</p>\n`;
+  content += `<p><strong>Movie Name:</strong> ${details.title}</p>\n`;
   if (details.genre) {
-    content += `<li><strong>Genre:</strong> ${details.genre}</li>\n`;
-  }
-  if (details.language) {
-    content += `<li><strong>Language:</strong> ${details.language}</li>\n`;
-  }
-  if (details.quality) {
-    content += `<li><strong>Quality:</strong> ${details.quality}</li>\n`;
+    content += `<p><strong>Genre:</strong> ${details.genre}</p>\n`;
   }
   if (details.director) {
-    content += `<li><strong>Director:</strong> ${details.director}</li>\n`;
+    content += `<p><strong>Director:</strong> ${details.director}</p>\n`;
   }
-  content += `</ul>\n\n`;
-
-  // Screenshots
+  if (details.language) {
+    content += `<p><strong>Language:</strong> ${details.language} / ESubs</p>\n`;
+  }
+  if (details.quality) {
+    content += `<p><strong>Quality:</strong> ${details.quality}</p>\n`;
+  }
+  content += `<p><strong>Format:</strong> MKV</p>\n\n`;
+  
+  // StoryLine Section
+  content += `<h3>StoryLine</h3>\n`;
+  if (details.storyline) {
+    content += `<p>${details.title} ${details.storyline}</p>\n\n`;
+  } else {
+    content += `<p>${details.title} - Watch and download this movie in high quality.</p>\n\n`;
+  }
+  
+  // Screenshots Section
   if (details.screenshots.length > 0) {
-    content += `<h3>Screenshots</h3>\n`;
-    content += `<p style="text-align: center;">\n`;
+    content += `<h3>Screenshots: (Must See Before Downloading)</h3>\n`;
     for (const ss of details.screenshots.slice(0, 6)) {
-      content += `<img src="${ss}" style="max-width: 300px; margin: 5px;" />\n`;
+      content += `<p style="text-align: center;"><img src="${ss}" alt="Screenshot" /></p>\n`;
     }
-    content += `</p>\n\n`;
+    content += `\n`;
   }
-
-  // Download links
+  
+  // Download Links - Each as separate paragraph
   if (details.downloadLinks.length > 0) {
-    content += `<h3>Download Links</h3>\n`;
-    content += `<table style="width: 100%; border-collapse: collapse;">\n`;
-    content += `<tbody>\n`;
     for (const link of details.downloadLinks) {
-      content += `<tr>\n`;
-      content += `<td style="padding: 10px; border: 1px solid #ddd;"><strong>${link.label}</strong></td>\n`;
-      content += `<td style="padding: 10px; border: 1px solid #ddd; text-align: center;"><a href="${link.url}" target="_blank" rel="nofollow">Download</a></td>\n`;
-      content += `</tr>\n`;
+      content += `<p><a href="${link.url}" target="_blank" rel="nofollow">${link.label}</a></p>\n`;
     }
-    content += `</tbody>\n`;
-    content += `</table>\n\n`;
+    content += `\n`;
   }
-
-  // Source attribution
-  content += `<p><em>Source: <a href="${details.sourceUrl}" rel="nofollow">${details.sourceUrl}</a></em></p>`;
+  
+  // Footer/Credits
+  content += `<p>Extra Movies extramovies, extramovies casa, Extra Movies, extramovies. , extramovies hub, extramovies 2022, extramovies in, extramovies cc, extramovies click, extra movies team, webs  Download ${shortName}</p>\n\n`;
+  
+  // Winding Up
+  content += `<h3>Winding Up</h3>\n`;
+  content += `<p>Thank You For Visiting ExtraMovies.Africa The Prefect Spot For HD Dual Audio (Hindi-English) Movies & TV Series Download. So Please Keep Downloading & Keep Sharing. Enjoy!</p>`;
 
   return content;
 }
@@ -349,11 +381,11 @@ export async function registerRoutes(
       
       console.log('WordPress content generated:', content.substring(0, 500));
 
-      // Create the post - wrap content for Gutenberg compatibility
+      // Create the post - raw HTML for Classic editor
       const postData: any = {
         title: movieDetails.title,
-        content: `<!-- wp:html -->\n${content}\n<!-- /wp:html -->`,
-        status: 'draft', // Create as draft so user can review
+        content: content,
+        status: 'draft',
       };
 
       const response = await fetch(apiUrl, {

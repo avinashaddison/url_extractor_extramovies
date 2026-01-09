@@ -26,6 +26,7 @@ export interface MovieDetails {
   quality?: string;
   imdbRating?: string;
   director?: string;
+  storyline?: string;
   downloadLinks: DownloadLink[];
   sourceUrl: string;
 }
