@@ -181,75 +181,79 @@ function generateWordPressContent(details: MovieDetails): string {
   // Extract short movie name from title (before year)
   const shortName = details.title.replace(/\s*\(\d{4}\).*$/, '').trim();
   const imdbRating = details.imdbRating || '7.0/10';
+  const language = details.language || 'Hindi';
+  const genre = details.genre || 'Drama';
+  const quality = details.quality || 'WEB-DL 480p | 720p | 1080p';
   
   let content = '';
 
-  // [How To Download] Section
-  content += `<p>[How To Download]</p>\n\n`;
+  // [How To Download] Section - Link
+  content += `<h2><a href="https://extramovies.miami/how-to-download/">[How To Download]</a></h2>\n\n`;
   
-  // Intro paragraph
-  content += `<p>Download ${details.title}, based on ${details.genre || 'Drama'} and Available In ${details.language || 'Hindi'} available</p>\n\n`;
+  // Intro paragraph with bold formatting
+  content += `<p>Download <strong>${details.title}</strong> [<strong>${language}</strong>] <strong>${quality}</strong> Dual Audio [x264/ESubs] | Full Movie, based on <strong>${genre}</strong> and Available In <strong>${language.split('(')[0].trim()}</strong> available</p>\n\n`;
   
-  // Poster image centered
+  // Poster image (if available)
   if (details.posterImage) {
-    content += `<p style="text-align: center;"><img src="${details.posterImage}" alt="${shortName}" /></p>\n\n`;
+    content += `<p><img src="${details.posterImage}" alt="${shortName}" /></p>\n\n`;
   }
   
-  // Download header
-  content += `<h3>Download ${shortName}</h3>\n\n`;
+  // Download header - H2
+  content += `<h2>Download ${shortName}</h2>\n\n`;
   
-  // Platform intro
-  content += `<p>Extra movies is the best online platform for downloading Bollywood and India movies and WEB Series. We also provide south movies like Hindi Dubbed, Tamil, Telugu, Malayalam, Punjabi, and other local Movies. We offer direct G-Drive download links for fast and secure downloading. Click the download button below and follow the steps to start the download.</p>\n\n`;
+  // Platform intro with bold formatting
+  content += `<p><a href="https://moviesdrive.cc/"><strong>MoviesDrive</strong></a> is the best online platform for downloading <strong>Bollywood</strong> &amp; <strong>Hollywood</strong> <strong>Movies</strong> and <strong>Indian Movies</strong> and <strong>Web Series</strong>. We also provide <strong>south</strong> movies like <strong>Hindi Dubbed</strong>, <strong>Tamil</strong>, <strong>Telugu</strong>, <strong>Malayalam</strong>, <strong>Punjabi</strong>, and other local Movies. We offer direct <strong>G-Drive</strong> download links for fast and secure downloading. Click the <strong>download</strong> button below and follow the steps to start the download.</p>\n\n`;
   
-  // Movie Information Section
-  content += `<h3>Movie Information</h3>\n`;
-  content += `<p><strong>iMDB Rating:</strong> ${imdbRating}</p>\n`;
-  content += `<p><strong>Movie Name:</strong> ${details.title}</p>\n`;
-  if (details.genre) {
-    content += `<p><strong>Genre:</strong> ${details.genre}</p>\n`;
-  }
+  // Movie Information Section - H2 with italic
+  content += `<h2><em>Movie Information</em></h2>\n\n`;
+  content += `<p>iMDB Rating: ${imdbRating}</p>\n`;
+  content += `<p>Movie Name: ${details.title}</p>\n`;
+  content += `<p>Genre: ${genre}</p>\n`;
   if (details.director) {
-    content += `<p><strong>Director:</strong> ${details.director}</p>\n`;
+    content += `<p>Director: ${details.director}</p>\n`;
   }
-  if (details.language) {
-    content += `<p><strong>Language:</strong> ${details.language} / ESubs</p>\n`;
-  }
-  if (details.quality) {
-    content += `<p><strong>Quality:</strong> ${details.quality}</p>\n`;
-  }
-  content += `<p><strong>Format:</strong> MKV</p>\n\n`;
+  content += `<p>Language:[${language}] / ESubs</p>\n`;
+  content += `<p>Quality: ${quality}</p>\n`;
+  content += `<p>Format: MKV</p>\n\n`;
   
-  // StoryLine Section
-  content += `<h3>StoryLine</h3>\n`;
+  // StoryLine Section - H2 with italic
+  content += `<h2><em>StoryLine</em></h2>\n\n`;
   if (details.storyline) {
-    content += `<p>${details.title} ${details.storyline}</p>\n\n`;
+    content += `<p><a href="#">${details.title} ${details.storyline}</a></p>\n\n`;
   } else {
-    content += `<p>${details.title} - Watch and download this movie in high quality.</p>\n\n`;
+    content += `<p><a href="#">${details.title} - Watch and download this amazing movie in high quality HD format.</a></p>\n\n`;
   }
   
-  // Screenshots Section
+  // Screenshots Section - H2
   if (details.screenshots.length > 0) {
-    content += `<h3>Screenshots: (Must See Before Downloading)</h3>\n`;
-    for (const ss of details.screenshots.slice(0, 6)) {
-      content += `<p style="text-align: center;"><img src="${ss}" alt="Screenshot" /></p>\n`;
+    content += `<h2>Screenshots: (Must See Before Downloading)</h2>\n\n`;
+    content += `<p>`;
+    for (const ss of details.screenshots.slice(0, 8)) {
+      content += `<img src="${ss}" alt="Screenshot" />`;
     }
-    content += `\n`;
+    content += `</p>\n\n`;
   }
   
-  // Download Links - Each as separate paragraph
+  // Download Links - Each as H3 heading with download button
   if (details.downloadLinks.length > 0) {
     for (const link of details.downloadLinks) {
-      content += `<p><a href="${link.url}" target="_blank" rel="nofollow">${link.label}</a></p>\n`;
+      content += `<h3>${link.label}</h3>\n`;
+      content += `<p><a href="${link.url}" target="_blank" rel="nofollow noopener">DOWNLOAD NOW</a></p>\n\n`;
     }
-    content += `\n`;
   }
   
-  // Footer/Credits
-  content += `<p>Extra Movies extramovies, extramovies casa, Extra Movies, extramovies. , extramovies hub, extramovies 2022, extramovies in, extramovies cc, extramovies click, extra movies team, webs  Download ${shortName}</p>\n\n`;
+  // Telegram link
+  content += `<p><a href="https://t.me/extramovies_16" target="_blank" rel="noopener">Join Telegram</a></p>\n\n`;
   
-  // Winding Up
-  content += `<h3>Winding Up</h3>\n`;
-  content += `<p>Thank You For Visiting ExtraMovies.Africa The Prefect Spot For HD Dual Audio (Hindi-English) Movies & TV Series Download. So Please Keep Downloading & Keep Sharing. Enjoy!</p>`;
+  // Footer/SEO text
+  content += `<p><strong>Extra Movies</strong> <strong>extramovies, extramovies casa, Extra Movies, extramovies. , extramovies hub, extramovies 2022, extramovies in, extramovies cc, extramovies click, extra movies team, webs</strong> Download ${details.title}</p>\n\n`;
+  
+  // How to download link
+  content += `<p><a href="https://extramovies.miami/how-to-download/" title="How to download">DOWNLOAD कैसे करे</a></p>\n\n`;
+  
+  // Winding Up - H3
+  content += `<h3>Winding Up</h3>\n\n`;
+  content += `<p>Thank You For Visiting <strong><a href="https://extramovies.miami/">ExtraMovies.Africa</a></strong> The Prefect Spot For HD Dual Audio (Hindi-English) Movies &amp; TV Series Download. So Please Keep Downloading &amp; Keep Sharing. Enjoy!</p>`;
 
   return content;
 }
