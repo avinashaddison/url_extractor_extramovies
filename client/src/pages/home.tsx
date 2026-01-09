@@ -596,13 +596,13 @@ export default function Home() {
               {/* Main Title - Big Title like MoviesDrive */}
               <div className="flex items-start gap-2">
                 <h1 className="text-2xl font-bold leading-tight">
-                  {movieDetails.title}
+                  Download {movieDetails.title}
                 </h1>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    navigator.clipboard.writeText(movieDetails.title);
+                    navigator.clipboard.writeText(`Download ${movieDetails.title}`);
                     toast({ title: "Copied", description: "Title copied" });
                   }}
                   data-testid="button-copy-title"
