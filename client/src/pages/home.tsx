@@ -570,7 +570,21 @@ export default function Home() {
               </p>
 
               {/* Movie Information */}
-              <h2 className="text-xl font-bold italic">Movie Information</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold italic">Movie Information</h2>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const info = `iMDB Rating: ${movieDetails.imdbRating || "N/A"}\nMovie Name: ${movieDetails.title}\nGenre: ${movieDetails.genre || "N/A"}${movieDetails.director ? `\nDirector: ${movieDetails.director}` : ""}\nLanguage:[${movieDetails.language || "Hindi"}] / ESubs\nQuality: ${movieDetails.quality || "WEB-DL 480p | 720p | 1080p"}\nFormat: MKV`;
+                    navigator.clipboard.writeText(info);
+                    toast({ title: "Copied", description: "Movie Information copied" });
+                  }}
+                  data-testid="button-copy-info"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
               <div className="space-y-1 text-sm">
                 <p>iMDB Rating: {movieDetails.imdbRating || "N/A"}</p>
                 <p>Movie Name: {movieDetails.title}</p>
@@ -582,7 +596,21 @@ export default function Home() {
               </div>
 
               {/* StoryLine */}
-              <h2 className="text-xl font-bold italic">StoryLine</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold italic">StoryLine</h2>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const story = `${movieDetails.title} ${movieDetails.storyline || "Watch and download this amazing movie in high quality HD format."}`;
+                    navigator.clipboard.writeText(story);
+                    toast({ title: "Copied", description: "StoryLine copied" });
+                  }}
+                  data-testid="button-copy-storyline"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
               <p className="text-sm text-primary">
                 <strong>{movieDetails.title}</strong>{" "}
                 {movieDetails.storyline || "Watch and download this amazing movie in high quality HD format."}
@@ -591,7 +619,21 @@ export default function Home() {
               {/* Screenshots */}
               {movieDetails.screenshots.length > 0 && (
                 <>
-                  <h2 className="text-xl font-bold">Screenshots: (Must See Before Downloading)</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold">Screenshots: (Must See Before Downloading)</h2>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const urls = movieDetails.screenshots.slice(0, 8).join("\n");
+                        navigator.clipboard.writeText(urls);
+                        toast({ title: "Copied", description: "Screenshot URLs copied" });
+                      }}
+                      data-testid="button-copy-screenshots"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
                   <div className="space-y-2">
                     {movieDetails.screenshots.slice(0, 8).map((ss, index) => (
                       <div key={index} className="text-center">
