@@ -23,8 +23,51 @@ import {
   Tag,
   Languages,
   MonitorPlay,
-  User
+  User,
+  ImageIcon
 } from "lucide-react";
+
+async function copyImageToClipboard(imageUrl: string): Promise<boolean> {
+  try {
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    const pngBlob = await convertToPng(blob);
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': pngBlob })
+    ]);
+    return true;
+  } catch (error) {
+    console.error('Failed to copy image:', error);
+    return false;
+  }
+}
+
+async function convertToPng(blob: Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        if (pngBlob) {
+          resolve(pngBlob);
+        } else {
+          reject(new Error('Failed to convert to PNG'));
+        }
+      }, 'image/png');
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(blob);
+  });
+}
 import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, WordPressPostResult, MovieDetails } from "@shared/schema";
 
 function MovieSection({ 
@@ -634,14 +677,32 @@ export default function Home() {
                       <Copy className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     {movieDetails.screenshots.slice(0, 8).map((ss, index) => (
-                      <div key={index} className="text-center">
+                      <div key={index} className="text-center space-y-2">
                         <img
                           src={ss}
                           alt={`Screenshot ${index + 1}`}
                           className="max-w-full mx-auto border border-border"
                         />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            const success = await copyImageToClipboard(ss);
+                            if (success) {
+                              toast({ title: "Copied", description: `Screenshot ${index + 1} copied to clipboard` });
+                            } else {
+                              navigator.clipboard.writeText(ss);
+                              toast({ title: "Copied URL", description: "Image copy failed, URL copied instead" });
+                            }
+                          }}
+                          className="gap-2"
+                          data-testid={`button-copy-image-${index}`}
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                          Copy Image
+                        </Button>
                       </div>
                     ))}
                   </div>
