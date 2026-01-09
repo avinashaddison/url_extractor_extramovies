@@ -7,8 +7,53 @@ const MDRIVE_PATTERN = "mdrive.today";
 
 const headers = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.5",
 };
+
+function extractMoviePosts(html: string): MoviePost[] {
+  const posts: MoviePost[] = [];
+  const seen = new Set<string>();
+
+  // Pattern: <a href="URL"><div class="poster-card">...<img src="THUMB">...<p class="poster-title">TITLE</p>...</div></a>
+  const posterPattern = /<a\s+href="(https:\/\/moviesdrive\.forum\/[^"]+)"[^>]*>\s*<div\s+class="poster-card"[^>]*>[\s\S]*?<img\s+src="([^"]*)"[^>]*>[\s\S]*?<p\s+class="poster-title">([^<]+)<\/p>[\s\S]*?<\/div>\s*<\/a>/gi;
+  
+  let match;
+  while ((match = posterPattern.exec(html)) !== null) {
+    const url = match[1];
+    const thumbnail = match[2];
+    const title = match[3]
+      .replace(/&#038;/g, '&')
+      .replace(/&amp;/g, '&')
+      .replace(/&[^;]+;/g, ' ')
+      .trim();
+    
+    if (!seen.has(url) && title.length > 5) {
+      seen.add(url);
+      posts.push({ title, url, thumbnail });
+    }
+  }
+
+  // Fallback: simpler pattern if above doesn't match
+  if (posts.length === 0) {
+    const simplePattern = /href="(https:\/\/moviesdrive\.forum\/[^"]*\d{4}[^"]*)"[^>]*>[\s\S]*?<p\s+class="poster-title">([^<]+)<\/p>/gi;
+    while ((match = simplePattern.exec(html)) !== null) {
+      const url = match[1];
+      const title = match[2]
+        .replace(/&#038;/g, '&')
+        .replace(/&amp;/g, '&')
+        .replace(/&[^;]+;/g, ' ')
+        .trim();
+      
+      if (!seen.has(url) && title.length > 5) {
+        seen.add(url);
+        posts.push({ title, url });
+      }
+    }
+  }
+
+  return posts.slice(0, 30);
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -20,56 +65,19 @@ export async function registerRoutes(
       const page = parseInt(req.query.page as string) || 1;
       const url = page === 1 ? BASE_URL : `${BASE_URL}/page/${page}/`;
       
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { headers, redirect: 'follow' });
 
       if (!response.ok) {
         const result: MovieListResult = {
           posts: [],
           totalFound: 0,
-          error: `Failed to fetch: ${response.status}`,
+          error: `Failed to fetch: ${response.status} ${response.statusText}`,
         };
         return res.json(result);
       }
 
       const html = await response.text();
-      
-      const posts: MoviePost[] = [];
-      
-      const articleRegex = /<article[^>]*class="[^"]*post[^"]*"[^>]*>[\s\S]*?<\/article>/gi;
-      const articles = html.match(articleRegex) || [];
-      
-      for (const article of articles) {
-        const titleMatch = article.match(/<h2[^>]*class="[^"]*entry-title[^"]*"[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/i);
-        const imgMatch = article.match(/<img[^>]*src="([^"]+)"[^>]*/i);
-        
-        if (titleMatch) {
-          posts.push({
-            title: titleMatch[2].trim(),
-            url: titleMatch[1],
-            thumbnail: imgMatch ? imgMatch[1] : undefined,
-          });
-        }
-      }
-
-      if (posts.length === 0) {
-        const linkPattern = /<a[^>]*href="(https:\/\/moviesdrive\.forum\/[^"]*\d{4}[^"]*)"[^>]*>([^<]+)<\/a>/gi;
-        let match;
-        const seen = new Set<string>();
-        
-        while ((match = linkPattern.exec(html)) !== null) {
-          const url = match[1];
-          const title = match[2].trim();
-          
-          if (!seen.has(url) && 
-              !url.includes('/category/') && 
-              !url.includes('/tag/') && 
-              !url.includes('/page/') &&
-              title.length > 10) {
-            seen.add(url);
-            posts.push({ title, url });
-          }
-        }
-      }
+      const posts = extractMoviePosts(html);
 
       const result: MovieListResult = {
         posts,
@@ -103,7 +111,7 @@ export async function registerRoutes(
     }
 
     try {
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { headers, redirect: 'follow' });
 
       if (!response.ok) {
         const result: LinkFinderResult = {
@@ -118,11 +126,14 @@ export async function registerRoutes(
 
       const html = await response.text();
       
-      const urlRegex = /https?:\/\/[^\s"'<>()]+/gi;
+      // Find all URLs containing mdrive.today
+      const urlRegex = /https?:\/\/[^\s"'<>()\\]+/gi;
       const allUrls = html.match(urlRegex) || [];
       
       const matchedLinks = [...new Set(
-        allUrls.filter(link => link.toLowerCase().includes(MDRIVE_PATTERN))
+        allUrls
+          .filter(link => link.toLowerCase().includes(MDRIVE_PATTERN))
+          .map(link => link.replace(/[\\'"]+$/, ''))
       )];
 
       const result: LinkFinderResult = {
