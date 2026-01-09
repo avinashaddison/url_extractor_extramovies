@@ -617,16 +617,28 @@ export default function Home() {
                   {movieDetails.downloadLinks.map((link, index) => (
                     <div key={index} className="text-center" data-testid={`link-result-${index}`}>
                       <h3 className="text-base font-semibold mb-2">{link.label}</h3>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button size="sm" className="gap-2">
-                          <Download className="w-4 h-4" />
-                          DOWNLOAD NOW
+                      <div className="flex items-center justify-center gap-2">
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button size="sm" className="gap-2">
+                            <Download className="w-4 h-4" />
+                            DOWNLOAD NOW
+                          </Button>
+                        </a>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCopy(link.url)}
+                          className="gap-2"
+                          data-testid={`button-copy-link-${index}`}
+                        >
+                          <Copy className="w-4 h-4" />
+                          Copy Link
                         </Button>
-                      </a>
+                      </div>
                     </div>
                   ))}
                 </div>
