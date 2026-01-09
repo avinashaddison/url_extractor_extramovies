@@ -346,11 +346,13 @@ export async function registerRoutes(
 
       // Generate WordPress content from movie details
       const content = generateWordPressContent(movieDetails);
+      
+      console.log('WordPress content generated:', content.substring(0, 500));
 
-      // Create the post
+      // Create the post - wrap content for Gutenberg compatibility
       const postData: any = {
         title: movieDetails.title,
-        content: content,
+        content: `<!-- wp:html -->\n${content}\n<!-- /wp:html -->`,
         status: 'draft', // Create as draft so user can review
       };
 
