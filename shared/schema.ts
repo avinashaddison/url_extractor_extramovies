@@ -12,11 +12,30 @@ export interface MovieListResult {
   error?: string;
 }
 
+export interface DownloadLink {
+  label: string;
+  url: string;
+}
+
+export interface MovieDetails {
+  title: string;
+  posterImage?: string;
+  screenshots: string[];
+  genre?: string;
+  language?: string;
+  quality?: string;
+  imdbRating?: string;
+  director?: string;
+  downloadLinks: DownloadLink[];
+  sourceUrl: string;
+}
+
 export interface LinkFinderResult {
   url: string;
   matchedLinks: string[];
   totalFound: number;
   processingTime: number;
+  movieDetails?: MovieDetails;
   error?: string;
 }
 
@@ -29,9 +48,7 @@ export const wordpressSettingsSchema = z.object({
 export type WordPressSettings = z.infer<typeof wordpressSettingsSchema>;
 
 export interface WordPressPostRequest {
-  title: string;
-  content: string;
-  thumbnail?: string;
+  movieDetails: MovieDetails;
   settings: WordPressSettings;
 }
 

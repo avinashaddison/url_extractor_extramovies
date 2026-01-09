@@ -18,9 +18,14 @@ import {
   Settings,
   Send,
   CheckCircle,
-  X
+  X,
+  Star,
+  Tag,
+  Languages,
+  MonitorPlay,
+  User
 } from "lucide-react";
-import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, WordPressPostResult } from "@shared/schema";
+import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, WordPressPostResult, MovieDetails } from "@shared/schema";
 
 function MovieSection({ 
   title, 
@@ -173,6 +178,82 @@ function WordPressSettingsPanel({
   );
 }
 
+function MovieDetailsCard({ details }: { details: MovieDetails }) {
+  return (
+    <Card className="mb-6">
+      <CardContent className="pt-6">
+        <div className="flex gap-6">
+          {details.posterImage && (
+            <div className="w-40 flex-shrink-0">
+              <img
+                src={details.posterImage}
+                alt={details.title}
+                className="w-full rounded-md"
+              />
+            </div>
+          )}
+          <div className="flex-1 space-y-3">
+            <h2 className="text-xl font-semibold" data-testid="text-movie-title">{details.title}</h2>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {details.imdbRating && (
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <span className="text-muted-foreground">IMDB:</span>
+                  <span className="font-medium">{details.imdbRating}</span>
+                </div>
+              )}
+              {details.genre && (
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-primary" />
+                  <span className="text-muted-foreground">Genre:</span>
+                  <span className="font-medium">{details.genre}</span>
+                </div>
+              )}
+              {details.language && (
+                <div className="flex items-center gap-2">
+                  <Languages className="w-4 h-4 text-primary" />
+                  <span className="text-muted-foreground">Language:</span>
+                  <span className="font-medium">{details.language}</span>
+                </div>
+              )}
+              {details.quality && (
+                <div className="flex items-center gap-2">
+                  <MonitorPlay className="w-4 h-4 text-primary" />
+                  <span className="text-muted-foreground">Quality:</span>
+                  <span className="font-medium">{details.quality}</span>
+                </div>
+              )}
+              {details.director && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <User className="w-4 h-4 text-primary" />
+                  <span className="text-muted-foreground">Director:</span>
+                  <span className="font-medium">{details.director}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {details.screenshots.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-medium mb-3 text-muted-foreground">Screenshots</h3>
+            <div className="grid grid-cols-4 gap-2">
+              {details.screenshots.slice(0, 4).map((ss, index) => (
+                <img
+                  key={index}
+                  src={ss}
+                  alt={`Screenshot ${index + 1}`}
+                  className="w-full rounded-md"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Home() {
   const [selectedPost, setSelectedPost] = useState<MoviePost | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -211,9 +292,9 @@ export default function Home() {
   });
 
   const postToWordPressMutation = useMutation({
-    mutationFn: async (data: { title: string; content: string; thumbnail?: string }) => {
+    mutationFn: async (movieDetails: MovieDetails) => {
       const response = await apiRequest("POST", "/api/wordpress/post", {
-        ...data,
+        movieDetails,
         settings: wpSettings,
       });
       return response.json() as Promise<WordPressPostResult>;
@@ -274,7 +355,8 @@ export default function Home() {
   };
 
   const handlePostToWordPress = () => {
-    if (!selectedPost || !extractLinksMutation.data?.matchedLinks) return;
+    const movieDetails = extractLinksMutation.data?.movieDetails;
+    if (!movieDetails) return;
 
     if (!wpSettings.siteUrl || !wpSettings.username || !wpSettings.appPassword) {
       toast({
@@ -286,21 +368,7 @@ export default function Home() {
       return;
     }
 
-    const links = extractLinksMutation.data.matchedLinks;
-    const content = `
-<p><strong>Download Links:</strong></p>
-<ul>
-${links.map(link => `<li><a href="${link}" target="_blank" rel="nofollow">${link}</a></li>`).join('\n')}
-</ul>
-
-<p><em>Source: <a href="${selectedPost.url}">${selectedPost.url}</a></em></p>
-    `.trim();
-
-    postToWordPressMutation.mutate({
-      title: selectedPost.title,
-      content: content,
-      thumbnail: selectedPost.thumbnail,
-    });
+    postToWordPressMutation.mutate(movieDetails);
   };
 
   const categorizeMovies = (posts: MoviePost[]) => {
@@ -337,20 +405,33 @@ ${links.map(link => `<li><a href="${link}" target="_blank" rel="nofollow">${link
     : { latest: [], bollywood: [], hollywood: [], series: [], other: [] };
 
   const hasWpSettings = wpSettings.siteUrl && wpSettings.username && wpSettings.appPassword;
+  const movieDetails = extractLinksMutation.data?.movieDetails;
 
   if (selectedPost) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-[1000px] mx-auto px-4 py-8">
-          <Button
-            variant="ghost"
-            onClick={handleBack}
-            className="gap-2 mb-6"
-            data-testid="button-back"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Movies
-          </Button>
+          <div className="flex items-center justify-between mb-6">
+            <Button
+              variant="ghost"
+              onClick={handleBack}
+              className="gap-2"
+              data-testid="button-back"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Movies
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSettings(!showSettings)}
+              className="gap-2"
+              data-testid="button-wp-settings"
+            >
+              <Settings className="w-4 h-4" />
+              {hasWpSettings ? "WP Connected" : "Configure WP"}
+            </Button>
+          </div>
 
           {showSettings && (
             <WordPressSettingsPanel
@@ -360,145 +441,118 @@ ${links.map(link => `<li><a href="${link}" target="_blank" rel="nofollow">${link
             />
           )}
 
-          <div className="flex gap-6 mb-6">
-            {selectedPost.thumbnail && (
-              <div className="w-48 flex-shrink-0">
-                <div className="aspect-[2/3] rounded-md overflow-hidden bg-muted">
-                  <img
-                    src={selectedPost.thumbnail}
-                    alt={selectedPost.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            )}
-            <div className="flex-1">
-              <h1 className="text-2xl font-semibold mb-3" data-testid="text-post-title">
-                {selectedPost.title}
-              </h1>
-              <p className="text-sm text-muted-foreground font-mono break-all mb-4">
-                {selectedPost.url}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="gap-2"
-                  data-testid="button-wp-settings"
-                >
-                  <Settings className="w-4 h-4" />
-                  {hasWpSettings ? "WP Connected" : "Configure WP"}
-                </Button>
-              </div>
+          {extractLinksMutation.isPending && (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
             </div>
-          </div>
+          )}
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-medium">MDrive Links</h2>
-                  {extractLinksMutation.data && (
-                    <span className="px-2 py-1 text-xs font-medium rounded-md bg-primary/10 text-primary" data-testid="text-link-count">
-                      {extractLinksMutation.data.totalFound} found
-                    </span>
-                  )}
-                </div>
-                {extractLinksMutation.data?.matchedLinks && extractLinksMutation.data.matchedLinks.length > 0 && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCopyAll}
-                      className="gap-2"
-                      data-testid="button-copy-all"
-                    >
-                      <Copy className="w-3 h-3" />
-                      Copy All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownload}
-                      className="gap-2"
-                      data-testid="button-download"
-                    >
-                      <Download className="w-3 h-3" />
-                      Download
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handlePostToWordPress}
-                      disabled={postToWordPressMutation.isPending}
-                      className="gap-2"
-                      data-testid="button-post-wp"
-                    >
-                      {postToWordPressMutation.isPending ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : postToWordPressMutation.data?.success ? (
-                        <CheckCircle className="w-3 h-3" />
-                      ) : (
-                        <Send className="w-3 h-3" />
-                      )}
-                      Post to WordPress
-                    </Button>
-                  </div>
-                )}
-              </div>
+          {extractLinksMutation.data?.error && (
+            <div className="p-4 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm" data-testid="text-error">
+              {extractLinksMutation.data.error}
+            </div>
+          )}
 
-              {extractLinksMutation.isPending && (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                </div>
-              )}
+          {movieDetails && (
+            <>
+              <MovieDetailsCard details={movieDetails} />
 
-              {extractLinksMutation.data?.error && (
-                <div className="p-4 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm" data-testid="text-error">
-                  {extractLinksMutation.data.error}
-                </div>
-              )}
-
-              {extractLinksMutation.data && !extractLinksMutation.data.error && extractLinksMutation.data.matchedLinks.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Link2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p className="text-sm">No mdrive.today links found in this post</p>
-                </div>
-              )}
-
-              {extractLinksMutation.data?.matchedLinks && extractLinksMutation.data.matchedLinks.length > 0 && (
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {extractLinksMutation.data.matchedLinks.map((link, index) => (
-                    <div
-                      key={index}
-                      className="group flex items-center gap-3 p-3 rounded-md bg-muted/50 hover-elevate"
-                      data-testid={`link-result-${index}`}
-                    >
-                      <span className="flex-1 font-mono text-sm truncate" title={link}>
-                        {link}
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-medium">Download Links</h2>
+                      <span className="px-2 py-1 text-xs font-medium rounded-md bg-primary/10 text-primary" data-testid="text-link-count">
+                        {movieDetails.downloadLinks.length} found
                       </span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleCopy(link)}
-                          className="h-8 w-8"
-                          data-testid={`button-copy-${index}`}
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </Button>
-                        <a href={link} target="_blank" rel="noopener noreferrer">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </Button>
-                        </a>
-                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    {movieDetails.downloadLinks.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyAll}
+                          className="gap-2"
+                          data-testid="button-copy-all"
+                        >
+                          <Copy className="w-3 h-3" />
+                          Copy All
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownload}
+                          className="gap-2"
+                          data-testid="button-download"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handlePostToWordPress}
+                          disabled={postToWordPressMutation.isPending}
+                          className="gap-2"
+                          data-testid="button-post-wp"
+                        >
+                          {postToWordPressMutation.isPending ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : postToWordPressMutation.data?.success ? (
+                            <CheckCircle className="w-3 h-3" />
+                          ) : (
+                            <Send className="w-3 h-3" />
+                          )}
+                          Post to WordPress
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {movieDetails.downloadLinks.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Link2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                      <p className="text-sm">No mdrive.today links found in this post</p>
+                    </div>
+                  )}
+
+                  {movieDetails.downloadLinks.length > 0 && (
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                      {movieDetails.downloadLinks.map((link, index) => (
+                        <div
+                          key={index}
+                          className="group flex items-center gap-3 p-3 rounded-md bg-muted/50 hover-elevate"
+                          data-testid={`link-result-${index}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm mb-1">{link.label}</p>
+                            <p className="font-mono text-xs text-muted-foreground truncate" title={link.url}>
+                              {link.url}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleCopy(link.url)}
+                              className="h-8 w-8"
+                              data-testid={`button-copy-${index}`}
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </Button>
+                            <a href={link.url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Button>
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </div>
     );

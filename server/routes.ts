@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import type { MovieListResult, LinkFinderResult, MoviePost, WordPressPostRequest, WordPressPostResult } from "@shared/schema";
+import type { MovieListResult, LinkFinderResult, MoviePost, MovieDetails, DownloadLink, WordPressPostRequest, WordPressPostResult } from "@shared/schema";
 import { wordpressSettingsSchema } from "@shared/schema";
 
 const BASE_URL = "https://moviesdrive.forum";
@@ -52,6 +52,170 @@ function extractMoviePosts(html: string): MoviePost[] {
   }
 
   return posts.slice(0, 30);
+}
+
+function decodeHtml(text: string): string {
+  return text
+    .replace(/&#038;/g, '&')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+}
+
+function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
+  const details: MovieDetails = {
+    title: '',
+    screenshots: [],
+    downloadLinks: [],
+    sourceUrl,
+  };
+
+  // Extract title from h1 or title tag
+  const titleMatch = html.match(/<h1[^>]*class="post-title"[^>]*>([^<]+)<\/h1>/i);
+  if (titleMatch) {
+    details.title = decodeHtml(titleMatch[1]);
+  } else {
+    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    if (h1Match) {
+      details.title = decodeHtml(h1Match[1]);
+    }
+  }
+
+  // Extract poster image (usually from TMDB or first aligncenter image)
+  const posterMatch = html.match(/<img[^>]+class="[^"]*aligncenter[^"]*"[^>]+src="([^"]+)"[^>]*>/i);
+  if (posterMatch) {
+    details.posterImage = posterMatch[1];
+  }
+
+  // Extract screenshots (images from catimages or similar)
+  const screenshotRegex = /<img[^>]+src="(https:\/\/catimages\.org[^"]+)"[^>]*>/gi;
+  let ssMatch;
+  while ((ssMatch = screenshotRegex.exec(html)) !== null) {
+    if (!details.screenshots.includes(ssMatch[1])) {
+      details.screenshots.push(ssMatch[1]);
+    }
+  }
+
+  // Extract IMDB rating
+  const imdbMatch = html.match(/iMDB Rating:\s*<\/strong>\s*([^<]+)/i);
+  if (imdbMatch) {
+    details.imdbRating = decodeHtml(imdbMatch[1]).trim();
+  }
+
+  // Extract Genre
+  const genreMatch = html.match(/Genre:\s*([^<]+)</i);
+  if (genreMatch) {
+    details.genre = decodeHtml(genreMatch[1]).trim();
+  }
+
+  // Extract Language
+  const langMatch = html.match(/Language:\s*<\/strong>\s*<strong>([^<]+)</i);
+  if (langMatch) {
+    details.language = decodeHtml(langMatch[1]).replace(/[\[\]]/g, '').trim();
+  }
+
+  // Extract Quality
+  const qualityMatch = html.match(/Quality:\s*<\/strong>\s*<strong>([^<]+)<\/strong>\s*<strong>([^<]+)</i);
+  if (qualityMatch) {
+    details.quality = decodeHtml(qualityMatch[1] + ' ' + qualityMatch[2]).trim();
+  }
+
+  // Extract Director
+  const directorMatch = html.match(/Director:\s*<\/strong>\s*([^<]+)/i);
+  if (directorMatch) {
+    details.director = decodeHtml(directorMatch[1]).trim();
+  }
+
+  // Extract download links with labels from h5 headings
+  // Find all h5 tags that contain download quality info
+  const h5Regex = /<h5[^>]*>([^<]*(?:480p|720p|1080p|2160p|4k)[^<]*)<\/h5>/gi;
+  const downloadLabels: string[] = [];
+  let h5Match;
+  while ((h5Match = h5Regex.exec(html)) !== null) {
+    const label = decodeHtml(h5Match[1]).trim();
+    if (label && !label.includes('DOWNLOAD LINKS')) {
+      downloadLabels.push(label);
+    }
+  }
+
+  // Extract mdrive links
+  const urlRegex = /https?:\/\/[^\s"'<>()\\]+mdrive\.today[^\s"'<>()\\]*/gi;
+  const allUrls = html.match(urlRegex) || [];
+  const uniqueLinks = Array.from(new Set(allUrls.map(link => link.replace(/[\\'"]+$/, ''))));
+
+  // Match labels with links (they typically appear in order)
+  for (let i = 0; i < uniqueLinks.length; i++) {
+    const link: DownloadLink = {
+      url: uniqueLinks[i],
+      label: downloadLabels[i] || `Download Link ${i + 1}`,
+    };
+    details.downloadLinks.push(link);
+  }
+
+  return details;
+}
+
+function generateWordPressContent(details: MovieDetails): string {
+  let content = '';
+
+  // Poster image
+  if (details.posterImage) {
+    content += `<p style="text-align: center;"><img src="${details.posterImage}" alt="${details.title}" /></p>\n\n`;
+  }
+
+  // Movie info section
+  content += `<h3>Movie Info</h3>\n`;
+  content += `<ul>\n`;
+  if (details.imdbRating) {
+    content += `<li><strong>IMDB Rating:</strong> ${details.imdbRating}</li>\n`;
+  }
+  if (details.genre) {
+    content += `<li><strong>Genre:</strong> ${details.genre}</li>\n`;
+  }
+  if (details.language) {
+    content += `<li><strong>Language:</strong> ${details.language}</li>\n`;
+  }
+  if (details.quality) {
+    content += `<li><strong>Quality:</strong> ${details.quality}</li>\n`;
+  }
+  if (details.director) {
+    content += `<li><strong>Director:</strong> ${details.director}</li>\n`;
+  }
+  content += `</ul>\n\n`;
+
+  // Screenshots
+  if (details.screenshots.length > 0) {
+    content += `<h3>Screenshots</h3>\n`;
+    content += `<p style="text-align: center;">\n`;
+    for (const ss of details.screenshots.slice(0, 6)) {
+      content += `<img src="${ss}" style="max-width: 300px; margin: 5px;" />\n`;
+    }
+    content += `</p>\n\n`;
+  }
+
+  // Download links
+  if (details.downloadLinks.length > 0) {
+    content += `<h3>Download Links</h3>\n`;
+    content += `<table style="width: 100%; border-collapse: collapse;">\n`;
+    content += `<tbody>\n`;
+    for (const link of details.downloadLinks) {
+      content += `<tr>\n`;
+      content += `<td style="padding: 10px; border: 1px solid #ddd;"><strong>${link.label}</strong></td>\n`;
+      content += `<td style="padding: 10px; border: 1px solid #ddd; text-align: center;"><a href="${link.url}" target="_blank" rel="nofollow">Download</a></td>\n`;
+      content += `</tr>\n`;
+    }
+    content += `</tbody>\n`;
+    content += `</table>\n\n`;
+  }
+
+  // Source attribution
+  content += `<p><em>Source: <a href="${details.sourceUrl}" rel="nofollow">${details.sourceUrl}</a></em></p>`;
+
+  return content;
 }
 
 export async function registerRoutes(
@@ -125,20 +289,18 @@ export async function registerRoutes(
 
       const html = await response.text();
       
-      const urlRegex = /https?:\/\/[^\s"'<>()\\]+/gi;
-      const allUrls = html.match(urlRegex) || [];
+      // Extract full movie details
+      const movieDetails = extractMovieDetails(html, url);
       
-      const matchedLinks = [...new Set(
-        allUrls
-          .filter(link => link.toLowerCase().includes(MDRIVE_PATTERN))
-          .map(link => link.replace(/[\\'"]+$/, ''))
-      )];
+      // Also get simple list of links for backward compatibility
+      const matchedLinks = movieDetails.downloadLinks.map(dl => dl.url);
 
       const result: LinkFinderResult = {
         url,
         matchedLinks,
         totalFound: matchedLinks.length,
         processingTime: Date.now() - startTime,
+        movieDetails,
       };
 
       res.json(result);
@@ -157,7 +319,7 @@ export async function registerRoutes(
   // WordPress posting endpoint
   app.post("/api/wordpress/post", async (req, res) => {
     try {
-      const { title, content, thumbnail, settings } = req.body as WordPressPostRequest;
+      const { movieDetails, settings } = req.body as WordPressPostRequest;
 
       // Validate settings
       const settingsResult = wordpressSettingsSchema.safeParse(settings);
@@ -178,9 +340,12 @@ export async function registerRoutes(
       // Create auth header (Basic Auth with application password)
       const auth = Buffer.from(`${username}:${appPassword}`).toString('base64');
 
+      // Generate WordPress content from movie details
+      const content = generateWordPressContent(movieDetails);
+
       // Create the post
       const postData: any = {
-        title: title,
+        title: movieDetails.title,
         content: content,
         status: 'draft', // Create as draft so user can review
       };
