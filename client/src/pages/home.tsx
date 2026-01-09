@@ -618,32 +618,33 @@ export default function Home() {
         )}
 
         {moviesQuery.data?.posts && moviesQuery.data.posts.length > 0 && (
-          <div>
-            <MovieSection 
-              title="Latest Updates" 
-              movies={categories.latest} 
-              onMovieClick={handlePostClick} 
-            />
-            <MovieSection 
-              title="Hollywood" 
-              movies={categories.hollywood} 
-              onMovieClick={handlePostClick} 
-            />
-            <MovieSection 
-              title="Bollywood" 
-              movies={categories.bollywood} 
-              onMovieClick={handlePostClick} 
-            />
-            <MovieSection 
-              title="Web Series" 
-              movies={categories.series} 
-              onMovieClick={handlePostClick} 
-            />
-            <MovieSection 
-              title="More Movies" 
-              movies={categories.other} 
-              onMovieClick={handlePostClick} 
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {moviesQuery.data.posts.map((movie, index) => (
+              <div
+                key={index}
+                onClick={() => handlePostClick(movie)}
+                className="group cursor-pointer"
+                data-testid={`card-movie-${index}`}
+              >
+                <div className="relative aspect-[2/3] rounded-md overflow-hidden border border-border bg-card mb-2">
+                  {movie.thumbnail ? (
+                    <img
+                      src={movie.thumbnail}
+                      alt={movie.title}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                      <Film className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <h3 className="text-xs font-medium line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+                  {movie.title}
+                </h3>
+              </div>
+            ))}
           </div>
         )}
 
