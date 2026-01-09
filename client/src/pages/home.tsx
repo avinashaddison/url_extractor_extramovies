@@ -971,32 +971,40 @@ export default function Home() {
           />
         )}
 
-        <div className="flex items-center gap-2 mb-4 p-3 bg-card rounded-md border border-border flex-wrap">
-          <span className="text-xs text-muted-foreground font-medium mr-2">Domains:</span>
-          <Input
-            value={domainSettings.moviesDriveDomain}
-            onChange={(e) => setDomainSettings({ ...domainSettings, moviesDriveDomain: e.target.value })}
-            onBlur={() => updateDomainSettings(domainSettings)}
-            placeholder="moviesdrive.forum"
-            className="h-8 text-xs w-40"
-            data-testid="input-moviesdrive-domain"
-          />
-          <Input
-            value={domainSettings.hubcloudDomain}
-            onChange={(e) => setDomainSettings({ ...domainSettings, hubcloudDomain: e.target.value })}
-            onBlur={() => updateDomainSettings(domainSettings)}
-            placeholder="hubcloud.foo"
-            className="h-8 text-xs w-32"
-            data-testid="input-hubcloud-domain"
-          />
-          <Input
-            value={domainSettings.mdrivePattern}
-            onChange={(e) => setDomainSettings({ ...domainSettings, mdrivePattern: e.target.value })}
-            onBlur={() => updateDomainSettings(domainSettings)}
-            placeholder="mdrive.today"
-            className="h-8 text-xs w-32"
-            data-testid="input-mdrive-pattern"
-          />
+        <div className="flex items-center gap-3 mb-4 p-3 bg-card rounded-md border border-border flex-wrap">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">Source:</span>
+            <Input
+              value={domainSettings.moviesDriveDomain}
+              onChange={(e) => setDomainSettings({ ...domainSettings, moviesDriveDomain: e.target.value })}
+              onBlur={() => updateDomainSettings(domainSettings)}
+              placeholder="moviesdrive.forum"
+              className="h-8 text-xs w-40"
+              data-testid="input-moviesdrive-domain"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">Download:</span>
+            <Input
+              value={domainSettings.hubcloudDomain}
+              onChange={(e) => setDomainSettings({ ...domainSettings, hubcloudDomain: e.target.value })}
+              onBlur={() => updateDomainSettings(domainSettings)}
+              placeholder="hubcloud.foo"
+              className="h-8 text-xs w-32"
+              data-testid="input-hubcloud-domain"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">Redirect:</span>
+            <Input
+              value={domainSettings.mdrivePattern}
+              onChange={(e) => setDomainSettings({ ...domainSettings, mdrivePattern: e.target.value })}
+              onBlur={() => updateDomainSettings(domainSettings)}
+              placeholder="mdrive.today"
+              className="h-8 text-xs w-32"
+              data-testid="input-mdrive-pattern"
+            />
+          </div>
           <Button
             size="sm"
             variant="outline"
