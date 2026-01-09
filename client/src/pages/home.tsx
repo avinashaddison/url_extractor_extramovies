@@ -122,9 +122,9 @@ function MovieSection({
                 </div>
               )}
               {uploadedMovies.has(post.url) && (
-                <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 font-semibold">
-                  <CheckCircle className="w-3 h-3" />
-                  Uploaded
+                <div className="absolute inset-0 bg-green-600/80 flex flex-col items-center justify-center animate-pulse">
+                  <CheckCircle className="w-10 h-10 text-white mb-2" />
+                  <span className="text-white text-sm font-bold tracking-wider uppercase">Uploaded</span>
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1024,9 +1024,9 @@ export default function Home() {
                     </div>
                   )}
                   {uploadedMovies.has(movie.url) && (
-                    <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 font-semibold">
-                      <CheckCircle className="w-3 h-3" />
-                      Uploaded
+                    <div className="absolute inset-0 bg-green-600/80 flex flex-col items-center justify-center animate-pulse">
+                      <CheckCircle className="w-10 h-10 text-white mb-2" />
+                      <span className="text-white text-sm font-bold tracking-wider uppercase">Uploaded</span>
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
