@@ -561,19 +561,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1400px] mx-auto px-4 py-8">
-        <header className="mb-10 text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
-              <Film className="w-8 h-8 text-primary" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight mb-2" data-testid="text-title">
-            MoviesDrive Link Finder
-          </h1>
-          <p className="text-muted-foreground">
-            Click any movie to extract MDrive download links
-          </p>
-        </header>
 
         {showSettings && (
           <WordPressSettingsPanel
