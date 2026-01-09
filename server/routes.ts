@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import type { MovieListResult, LinkFinderResult, MoviePost } from "@shared/schema";
+import type { MovieListResult, LinkFinderResult, MoviePost, WordPressPostRequest, WordPressPostResult } from "@shared/schema";
+import { wordpressSettingsSchema } from "@shared/schema";
 
 const BASE_URL = "https://moviesdrive.forum";
 const MDRIVE_PATTERN = "mdrive.today";
@@ -15,7 +16,6 @@ function extractMoviePosts(html: string): MoviePost[] {
   const posts: MoviePost[] = [];
   const seen = new Set<string>();
 
-  // Pattern: <a href="URL"><div class="poster-card">...<img src="THUMB">...<p class="poster-title">TITLE</p>...</div></a>
   const posterPattern = /<a\s+href="(https:\/\/moviesdrive\.forum\/[^"]+)"[^>]*>\s*<div\s+class="poster-card"[^>]*>[\s\S]*?<img\s+src="([^"]*)"[^>]*>[\s\S]*?<p\s+class="poster-title">([^<]+)<\/p>[\s\S]*?<\/div>\s*<\/a>/gi;
   
   let match;
@@ -34,7 +34,6 @@ function extractMoviePosts(html: string): MoviePost[] {
     }
   }
 
-  // Fallback: simpler pattern if above doesn't match
   if (posts.length === 0) {
     const simplePattern = /href="(https:\/\/moviesdrive\.forum\/[^"]*\d{4}[^"]*)"[^>]*>[\s\S]*?<p\s+class="poster-title">([^<]+)<\/p>/gi;
     while ((match = simplePattern.exec(html)) !== null) {
@@ -126,7 +125,6 @@ export async function registerRoutes(
 
       const html = await response.text();
       
-      // Find all URLs containing mdrive.today
       const urlRegex = /https?:\/\/[^\s"'<>()\\]+/gi;
       const allUrls = html.match(urlRegex) || [];
       
@@ -153,6 +151,123 @@ export async function registerRoutes(
         error: error instanceof Error ? error.message : "An error occurred",
       };
       res.json(result);
+    }
+  });
+
+  // WordPress posting endpoint
+  app.post("/api/wordpress/post", async (req, res) => {
+    try {
+      const { title, content, thumbnail, settings } = req.body as WordPressPostRequest;
+
+      // Validate settings
+      const settingsResult = wordpressSettingsSchema.safeParse(settings);
+      if (!settingsResult.success) {
+        const result: WordPressPostResult = {
+          success: false,
+          error: settingsResult.error.errors[0]?.message || "Invalid WordPress settings",
+        };
+        return res.status(400).json(result);
+      }
+
+      const { siteUrl, username, appPassword } = settingsResult.data;
+      
+      // Clean up site URL
+      const baseUrl = siteUrl.replace(/\/$/, '');
+      const apiUrl = `${baseUrl}/wp-json/wp/v2/posts`;
+
+      // Create auth header (Basic Auth with application password)
+      const auth = Buffer.from(`${username}:${appPassword}`).toString('base64');
+
+      // Create the post
+      const postData: any = {
+        title: title,
+        content: content,
+        status: 'draft', // Create as draft so user can review
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `WordPress API error: ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorMessage;
+        } catch {}
+        
+        const result: WordPressPostResult = {
+          success: false,
+          error: errorMessage,
+        };
+        return res.json(result);
+      }
+
+      const postResult = await response.json();
+      
+      const result: WordPressPostResult = {
+        success: true,
+        postId: postResult.id,
+        postUrl: postResult.link,
+      };
+
+      res.json(result);
+    } catch (error) {
+      const result: WordPressPostResult = {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to post to WordPress",
+      };
+      res.json(result);
+    }
+  });
+
+  // Test WordPress connection
+  app.post("/api/wordpress/test", async (req, res) => {
+    try {
+      const { siteUrl, username, appPassword } = req.body;
+
+      const settingsResult = wordpressSettingsSchema.safeParse({ siteUrl, username, appPassword });
+      if (!settingsResult.success) {
+        return res.json({ 
+          success: false, 
+          error: settingsResult.error.errors[0]?.message 
+        });
+      }
+
+      const baseUrl = siteUrl.replace(/\/$/, '');
+      const apiUrl = `${baseUrl}/wp-json/wp/v2/users/me`;
+
+      const auth = Buffer.from(`${username}:${appPassword}`).toString('base64');
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+        },
+      });
+
+      if (!response.ok) {
+        return res.json({ 
+          success: false, 
+          error: `Connection failed: ${response.status} - Check your credentials` 
+        });
+      }
+
+      const user = await response.json();
+      res.json({ 
+        success: true, 
+        message: `Connected as ${user.name || user.slug}` 
+      });
+    } catch (error) {
+      res.json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Connection failed" 
+      });
     }
   });
 

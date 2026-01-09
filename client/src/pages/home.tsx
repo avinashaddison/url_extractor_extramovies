@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
@@ -13,9 +14,13 @@ import {
   ArrowLeft,
   RefreshCw,
   Link2,
-  ChevronRight
+  ChevronRight,
+  Settings,
+  Send,
+  CheckCircle,
+  X
 } from "lucide-react";
-import type { MovieListResult, LinkFinderResult, MoviePost } from "@shared/schema";
+import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, WordPressPostResult } from "@shared/schema";
 
 function MovieSection({ 
   title, 
@@ -72,9 +77,120 @@ function MovieSection({
   );
 }
 
+function WordPressSettingsPanel({ 
+  settings, 
+  onSettingsChange,
+  onClose 
+}: { 
+  settings: WordPressSettings;
+  onSettingsChange: (settings: WordPressSettings) => void;
+  onClose: () => void;
+}) {
+  const [localSettings, setLocalSettings] = useState(settings);
+  const { toast } = useToast();
+
+  const testConnectionMutation = useMutation({
+    mutationFn: async (s: WordPressSettings) => {
+      const response = await apiRequest("POST", "/api/wordpress/test", s);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "Connected", description: data.message });
+      } else {
+        toast({ title: "Connection failed", description: data.error, variant: "destructive" });
+      }
+    },
+  });
+
+  const handleSave = () => {
+    localStorage.setItem("wp_settings", JSON.stringify(localSettings));
+    onSettingsChange(localSettings);
+    toast({ title: "Saved", description: "WordPress settings saved" });
+    onClose();
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-medium">WordPress Settings</CardTitle>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Site URL</label>
+          <Input
+            placeholder="https://yoursite.com"
+            value={localSettings.siteUrl}
+            onChange={(e) => setLocalSettings({ ...localSettings, siteUrl: e.target.value })}
+            data-testid="input-wp-url"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Username</label>
+          <Input
+            placeholder="admin"
+            value={localSettings.username}
+            onChange={(e) => setLocalSettings({ ...localSettings, username: e.target.value })}
+            data-testid="input-wp-username"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Application Password</label>
+          <Input
+            type="password"
+            placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+            value={localSettings.appPassword}
+            onChange={(e) => setLocalSettings({ ...localSettings, appPassword: e.target.value })}
+            data-testid="input-wp-password"
+          />
+          <p className="text-xs text-muted-foreground">
+            Create this in WordPress: Users → Profile → Application Passwords
+          </p>
+        </div>
+        <div className="flex items-center gap-2 pt-2">
+          <Button onClick={handleSave} data-testid="button-save-wp">
+            Save Settings
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => testConnectionMutation.mutate(localSettings)}
+            disabled={testConnectionMutation.isPending}
+            data-testid="button-test-wp"
+          >
+            {testConnectionMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : null}
+            Test Connection
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Home() {
   const [selectedPost, setSelectedPost] = useState<MoviePost | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [wpSettings, setWpSettings] = useState<WordPressSettings>({
+    siteUrl: "",
+    username: "",
+    appPassword: "",
+  });
   const { toast } = useToast();
+
+  useEffect(() => {
+    const saved = localStorage.getItem("wp_settings");
+    if (saved) {
+      try {
+        setWpSettings(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
 
   const moviesQuery = useQuery<MovieListResult>({
     queryKey: ["/api/movies"],
@@ -91,6 +207,30 @@ export default function Home() {
         description: error.message || "Failed to extract links",
         variant: "destructive",
       });
+    },
+  });
+
+  const postToWordPressMutation = useMutation({
+    mutationFn: async (data: { title: string; content: string; thumbnail?: string }) => {
+      const response = await apiRequest("POST", "/api/wordpress/post", {
+        ...data,
+        settings: wpSettings,
+      });
+      return response.json() as Promise<WordPressPostResult>;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({
+          title: "Posted to WordPress",
+          description: `Draft created! Post ID: ${data.postId}`,
+        });
+      } else {
+        toast({
+          title: "Failed to post",
+          description: data.error,
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -133,7 +273,36 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
-  // Categorize movies
+  const handlePostToWordPress = () => {
+    if (!selectedPost || !extractLinksMutation.data?.matchedLinks) return;
+
+    if (!wpSettings.siteUrl || !wpSettings.username || !wpSettings.appPassword) {
+      toast({
+        title: "WordPress not configured",
+        description: "Please configure your WordPress settings first",
+        variant: "destructive",
+      });
+      setShowSettings(true);
+      return;
+    }
+
+    const links = extractLinksMutation.data.matchedLinks;
+    const content = `
+<p><strong>Download Links:</strong></p>
+<ul>
+${links.map(link => `<li><a href="${link}" target="_blank" rel="nofollow">${link}</a></li>`).join('\n')}
+</ul>
+
+<p><em>Source: <a href="${selectedPost.url}">${selectedPost.url}</a></em></p>
+    `.trim();
+
+    postToWordPressMutation.mutate({
+      title: selectedPost.title,
+      content: content,
+      thumbnail: selectedPost.thumbnail,
+    });
+  };
+
   const categorizeMovies = (posts: MoviePost[]) => {
     const latest: MoviePost[] = [];
     const bollywood: MoviePost[] = [];
@@ -144,13 +313,11 @@ export default function Home() {
     posts.forEach((post, index) => {
       const title = post.title.toLowerCase();
       
-      // First 5 are latest
       if (index < 5) {
         latest.push(post);
         return;
       }
       
-      // Categorize rest
       if (title.includes('season') || title.includes('series') || title.includes('episode')) {
         series.push(post);
       } else if (title.includes('hindi') && !title.includes('english')) {
@@ -169,6 +336,8 @@ export default function Home() {
     ? categorizeMovies(moviesQuery.data.posts) 
     : { latest: [], bollywood: [], hollywood: [], series: [], other: [] };
 
+  const hasWpSettings = wpSettings.siteUrl && wpSettings.username && wpSettings.appPassword;
+
   if (selectedPost) {
     return (
       <div className="min-h-screen bg-background">
@@ -182,6 +351,14 @@ export default function Home() {
             <ArrowLeft className="w-4 h-4" />
             Back to Movies
           </Button>
+
+          {showSettings && (
+            <WordPressSettingsPanel
+              settings={wpSettings}
+              onSettingsChange={setWpSettings}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
 
           <div className="flex gap-6 mb-6">
             {selectedPost.thumbnail && (
@@ -199,9 +376,21 @@ export default function Home() {
               <h1 className="text-2xl font-semibold mb-3" data-testid="text-post-title">
                 {selectedPost.title}
               </h1>
-              <p className="text-sm text-muted-foreground font-mono break-all">
+              <p className="text-sm text-muted-foreground font-mono break-all mb-4">
                 {selectedPost.url}
               </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="gap-2"
+                  data-testid="button-wp-settings"
+                >
+                  <Settings className="w-4 h-4" />
+                  {hasWpSettings ? "WP Connected" : "Configure WP"}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -217,7 +406,7 @@ export default function Home() {
                   )}
                 </div>
                 {extractLinksMutation.data?.matchedLinks && extractLinksMutation.data.matchedLinks.length > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
@@ -237,6 +426,22 @@ export default function Home() {
                     >
                       <Download className="w-3 h-3" />
                       Download
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handlePostToWordPress}
+                      disabled={postToWordPressMutation.isPending}
+                      className="gap-2"
+                      data-testid="button-post-wp"
+                    >
+                      {postToWordPressMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : postToWordPressMutation.data?.success ? (
+                        <CheckCircle className="w-3 h-3" />
+                      ) : (
+                        <Send className="w-3 h-3" />
+                      )}
+                      Post to WordPress
                     </Button>
                   </div>
                 )}
@@ -316,23 +521,43 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="flex items-center justify-between mb-8">
+        {showSettings && (
+          <WordPressSettingsPanel
+            settings={wpSettings}
+            onSettingsChange={setWpSettings}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+
+        <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
               {moviesQuery.data?.totalFound || 0} movies indexed
             </span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => moviesQuery.refetch()}
-            disabled={moviesQuery.isFetching}
-            className="gap-2"
-            data-testid="button-refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${moviesQuery.isFetching ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSettings(!showSettings)}
+              className="gap-2"
+              data-testid="button-wp-settings-main"
+            >
+              <Settings className="w-4 h-4" />
+              WordPress
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => moviesQuery.refetch()}
+              disabled={moviesQuery.isFetching}
+              className="gap-2"
+              data-testid="button-refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${moviesQuery.isFetching ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {moviesQuery.isLoading && (
