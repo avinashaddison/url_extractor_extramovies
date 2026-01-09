@@ -27,45 +27,56 @@ import {
   ImageIcon
 } from "lucide-react";
 
-async function copyImageToClipboard(imageUrl: string): Promise<boolean> {
+async function copyAllImagesToClipboard(imageUrls: string[]): Promise<boolean> {
   try {
-    const response = await fetch(imageUrl);
-    const blob = await response.blob();
-    const pngBlob = await convertToPng(blob);
+    const images: HTMLImageElement[] = await Promise.all(
+      imageUrls.map((url) => loadImage(url))
+    );
+    
+    if (images.length === 0) return false;
+    
+    const maxWidth = Math.max(...images.map(img => img.width));
+    const totalHeight = images.reduce((sum, img) => sum + img.height + 10, 0);
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = maxWidth;
+    canvas.height = totalHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+    
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    let yOffset = 0;
+    for (const img of images) {
+      const xOffset = (maxWidth - img.width) / 2;
+      ctx.drawImage(img, xOffset, yOffset);
+      yOffset += img.height + 10;
+    }
+    
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/png');
+    });
+    
+    if (!blob) return false;
+    
     await navigator.clipboard.write([
-      new ClipboardItem({ 'image/png': pngBlob })
+      new ClipboardItem({ 'image/png': blob })
     ]);
     return true;
   } catch (error) {
-    console.error('Failed to copy image:', error);
+    console.error('Failed to copy images:', error);
     return false;
   }
 }
 
-async function convertToPng(blob: Blob): Promise<Blob> {
+async function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      canvas.toBlob((pngBlob) => {
-        if (pngBlob) {
-          resolve(pngBlob);
-        } else {
-          reject(new Error('Failed to convert to PNG'));
-        }
-      }, 'image/png');
-    };
+    img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = URL.createObjectURL(blob);
+    img.src = url;
   });
 }
 import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, WordPressPostResult, MovieDetails } from "@shared/schema";
@@ -682,9 +693,10 @@ export default function Home() {
                       onClick={async () => {
                         const screenshots = movieDetails.screenshots.slice(0, 8);
                         if (screenshots.length > 0) {
-                          const success = await copyImageToClipboard(screenshots[0]);
+                          toast({ title: "Processing...", description: "Combining all screenshots into one image" });
+                          const success = await copyAllImagesToClipboard(screenshots);
                           if (success) {
-                            toast({ title: "Copied", description: "First screenshot image copied (browsers only allow 1 image at a time)" });
+                            toast({ title: "Copied", description: `All ${screenshots.length} screenshots copied as one image` });
                           } else {
                             navigator.clipboard.writeText(screenshots.join("\n"));
                             toast({ title: "Copied URLs", description: "Image copy failed, URLs copied instead" });
@@ -695,7 +707,7 @@ export default function Home() {
                       data-testid="button-copy-screenshot-image"
                     >
                       <ImageIcon className="w-4 h-4" />
-                      Copy Image
+                      Copy All Images
                     </Button>
                   </div>
                   <div className="space-y-2">
