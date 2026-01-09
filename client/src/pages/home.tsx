@@ -737,14 +737,43 @@ export default function Home() {
                       Copy All Images
                     </Button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     {movieDetails.screenshots.slice(0, 8).map((ss, index) => (
-                      <div key={index} className="text-center">
+                      <div key={index} className="text-center space-y-2">
                         <img
                           src={ss}
                           alt={`Screenshot ${index + 1}`}
                           className="max-w-full mx-auto border border-border"
                         />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              const img = await loadImage(ss);
+                              const canvas = document.createElement('canvas');
+                              canvas.width = img.width;
+                              canvas.height = img.height;
+                              const ctx = canvas.getContext('2d');
+                              if (ctx) {
+                                ctx.drawImage(img, 0, 0);
+                                const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+                                if (blob) {
+                                  await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                                  toast({ title: "Copied", description: `Screenshot ${index + 1} copied` });
+                                }
+                              }
+                            } catch {
+                              navigator.clipboard.writeText(ss);
+                              toast({ title: "Copied URL", description: "Image copy failed, URL copied" });
+                            }
+                          }}
+                          className="gap-2"
+                          data-testid={`button-copy-screenshot-${index}`}
+                        >
+                          <Copy className="w-4 h-4" />
+                          Copy Image
+                        </Button>
                       </div>
                     ))}
                   </div>
