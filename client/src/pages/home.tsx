@@ -443,110 +443,124 @@ export default function Home() {
           )}
 
           {movieDetails && (
-            <div className="space-y-6">
+            <div className="space-y-4">
+              {/* [How To Download] Header */}
+              <h2 className="text-xl font-bold text-primary">[How To Download]</h2>
+
               {/* Intro paragraph */}
               <p className="text-sm">
-                Download <span className="font-bold text-primary">{movieDetails.title}</span>, based on{" "}
-                <span className="font-bold">{movieDetails.genre || "Drama"}</span> and Available In{" "}
-                <span className="font-bold">{movieDetails.language || "Hindi"}</span>
+                Download <strong>{movieDetails.title}</strong> [{" "}
+                <strong>{movieDetails.language || "Hindi"}</strong>]{" "}
+                <strong>{movieDetails.quality || "480p | 720p | 1080p"}</strong> Dual Audio [x264/ESubs] | Full Movie, based on{" "}
+                <strong>{movieDetails.genre || "Drama"}</strong> and Available In{" "}
+                <strong>{(movieDetails.language || "Hindi").split("(")[0].trim()}</strong> available
               </p>
 
               {/* Poster */}
               {movieDetails.posterImage && (
-                <div className="text-center">
+                <div className="text-center py-4">
                   <img
                     src={movieDetails.posterImage}
                     alt={movieDetails.title}
-                    className="max-w-[300px] mx-auto rounded-md border border-border"
+                    className="max-w-[280px] mx-auto rounded border border-border"
                   />
                 </div>
               )}
 
-              <hr className="border-border" />
+              {/* Download [Movie Name] Header */}
+              <h2 className="text-xl font-bold">
+                Download {movieDetails.title.replace(/\s*\(\d{4}\).*$/, "").trim()}
+              </h2>
 
-              {/* Movie Info Section */}
-              <div>
-                <h3 className="text-lg font-bold mb-4 text-primary">Movie/Film Info:</h3>
-                <div className="space-y-2 text-sm">
-                  <p><span className="text-yellow-500">iMDB Rating:</span> {movieDetails.imdbRating || "N/A"}</p>
-                  <p><span className="text-yellow-500">Movie Name:</span> {movieDetails.title}</p>
-                  <p><span className="text-yellow-500">Genre:</span> {movieDetails.genre || "N/A"}</p>
-                  {movieDetails.director && (
-                    <p><span className="text-yellow-500">Director:</span> {movieDetails.director}</p>
-                  )}
-                  <p><span className="text-yellow-500">Language:</span> [{movieDetails.language || "Hindi"}] / ESubs</p>
-                  <p><span className="text-yellow-500">Quality:</span> {movieDetails.quality || "WEB-DL"}</p>
-                  <p><span className="text-yellow-500">Format:</span> MKV</p>
-                </div>
+              {/* MoviesDrive intro */}
+              <p className="text-sm text-muted-foreground">
+                <strong>MoviesDrive</strong> is the best online platform for downloading <strong>Bollywood</strong> & <strong>Hollywood</strong> <strong>Movies</strong> and <strong>Indian Movies</strong> and <strong>Web Series</strong>. We also provide <strong>south</strong> movies like <strong>Hindi Dubbed</strong>, <strong>Tamil</strong>, <strong>Telugu</strong>, <strong>Malayalam</strong>, <strong>Punjabi</strong>, and other local Movies. We offer direct <strong>G-Drive</strong> download links for fast and secure downloading. Click the <strong>download</strong> button below and follow the steps to start the download.
+              </p>
+
+              {/* Movie Information */}
+              <h2 className="text-xl font-bold italic">Movie Information</h2>
+              <div className="space-y-1 text-sm">
+                <p>iMDB Rating: {movieDetails.imdbRating || "N/A"}</p>
+                <p>Movie Name: {movieDetails.title}</p>
+                <p>Genre: {movieDetails.genre || "N/A"}</p>
+                {movieDetails.director && <p>Director: {movieDetails.director}</p>}
+                <p>Language:[{movieDetails.language || "Hindi"}] / ESubs</p>
+                <p>Quality: {movieDetails.quality || "WEB-DL 480p | 720p | 1080p"}</p>
+                <p>Format: MKV</p>
               </div>
 
-              <hr className="border-border" />
-
-              {/* Storyline */}
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-primary">Storyline:</h3>
-                <p className="text-sm text-muted-foreground">
-                  {movieDetails.storyline || `${movieDetails.title} - Watch and download this movie in high quality.`}
-                </p>
-              </div>
-
-              <hr className="border-border" />
+              {/* StoryLine */}
+              <h2 className="text-xl font-bold italic">StoryLine</h2>
+              <p className="text-sm text-primary">
+                <strong>{movieDetails.title}</strong>{" "}
+                {movieDetails.storyline || "Watch and download this amazing movie in high quality HD format."}
+              </p>
 
               {/* Screenshots */}
               {movieDetails.screenshots.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-bold mb-4 text-primary">Screen-Shots:</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <>
+                  <h2 className="text-xl font-bold">Screenshots: (Must See Before Downloading)</h2>
+                  <div className="flex flex-wrap gap-1">
                     {movieDetails.screenshots.slice(0, 8).map((ss, index) => (
                       <img
                         key={index}
                         src={ss}
                         alt={`Screenshot ${index + 1}`}
-                        className="w-full rounded-md border border-border"
+                        className="w-[120px] h-auto border border-border"
                       />
                     ))}
                   </div>
+                </>
+              )}
+
+              {/* Download Links */}
+              {movieDetails.downloadLinks.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Link2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-sm">No download links found</p>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-4">
+                  {movieDetails.downloadLinks.map((link, index) => (
+                    <div key={index} data-testid={`link-result-${index}`}>
+                      <h3 className="text-base font-semibold mb-2">{link.label}</h3>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button size="sm" className="gap-2">
+                          <Download className="w-4 h-4" />
+                          DOWNLOAD NOW
+                        </Button>
+                      </a>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <hr className="border-border" />
-
-              {/* Download Links Section */}
-              <div>
-                <h3 className="text-lg font-bold mb-4 text-center text-primary">
-                  -: DOWNLOAD LINKS :-
-                </h3>
-                
-                {movieDetails.downloadLinks.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Link2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                    <p className="text-sm">No download links found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {movieDetails.downloadLinks.map((link, index) => (
-                      <div key={index} className="text-center space-y-2" data-testid={`link-result-${index}`}>
-                        <h4 className="text-sm font-medium">{link.label}</h4>
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block"
-                        >
-                          <Button size="sm" className="gap-2">
-                            <Download className="w-4 h-4" />
-                            DOWNLOAD
-                          </Button>
-                        </a>
-                        <hr className="border-border mt-4" />
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* Telegram */}
+              <div className="pt-4">
+                <a href="https://t.me/extramovies_16" target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    Join Telegram
+                  </Button>
+                </a>
               </div>
 
+              {/* SEO Footer */}
+              <p className="text-xs text-muted-foreground pt-2">
+                <strong>Extra Movies</strong> extramovies, extramovies casa, Extra Movies, extramovies hub, extramovies 2022, extramovies in, extramovies cc, extramovies click, extra movies team, webs Download {movieDetails.title}
+              </p>
+
+              {/* Winding Up */}
+              <h3 className="text-lg font-bold pt-4">Winding Up</h3>
+              <p className="text-sm text-muted-foreground">
+                Thank You For Visiting <strong>ExtraMovies.Africa</strong> The Prefect Spot For HD Dual Audio (Hindi-English) Movies & TV Series Download. So Please Keep Downloading & Keep Sharing. Enjoy!
+              </p>
+
               {/* Action Buttons */}
-              <div className="flex items-center justify-center gap-3 flex-wrap pt-4">
+              <div className="flex items-center gap-3 flex-wrap pt-6 border-t border-border">
                 <Button
                   variant="outline"
                   size="sm"
