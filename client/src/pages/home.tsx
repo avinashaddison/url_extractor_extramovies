@@ -500,14 +500,15 @@ export default function Home() {
               {movieDetails.screenshots.length > 0 && (
                 <>
                   <h2 className="text-xl font-bold">Screenshots: (Must See Before Downloading)</h2>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="space-y-2">
                     {movieDetails.screenshots.slice(0, 8).map((ss, index) => (
-                      <img
-                        key={index}
-                        src={ss}
-                        alt={`Screenshot ${index + 1}`}
-                        className="w-[120px] h-auto border border-border"
-                      />
+                      <div key={index} className="text-center">
+                        <img
+                          src={ss}
+                          alt={`Screenshot ${index + 1}`}
+                          className="max-w-full mx-auto border border-border"
+                        />
+                      </div>
                     ))}
                   </div>
                 </>
@@ -522,7 +523,7 @@ export default function Home() {
               ) : (
                 <div className="space-y-4 pt-4">
                   {movieDetails.downloadLinks.map((link, index) => (
-                    <div key={index} data-testid={`link-result-${index}`}>
+                    <div key={index} className="text-center" data-testid={`link-result-${index}`}>
                       <h3 className="text-base font-semibold mb-2">{link.label}</h3>
                       <a
                         href={link.url}
