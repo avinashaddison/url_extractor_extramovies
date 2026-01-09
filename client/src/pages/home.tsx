@@ -84,11 +84,13 @@ import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, W
 function MovieSection({ 
   title, 
   movies, 
-  onMovieClick 
+  onMovieClick,
+  uploadedMovies 
 }: { 
   title: string; 
   movies: MoviePost[]; 
   onMovieClick: (post: MoviePost) => void;
+  uploadedMovies: Set<string>;
 }) {
   if (movies.length === 0) return null;
   
@@ -117,6 +119,12 @@ function MovieSection({
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Film className="w-12 h-12 text-muted-foreground/30" />
+                </div>
+              )}
+              {uploadedMovies.has(post.url) && (
+                <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 font-semibold">
+                  <CheckCircle className="w-3 h-3" />
+                  Uploaded
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -388,6 +396,7 @@ export default function Home() {
     wp2: { siteUrl: "", username: "", appPassword: "" },
     wp2Enabled: false,
   });
+  const [uploadedMovies, setUploadedMovies] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -397,7 +406,29 @@ export default function Home() {
         setWpSettings(JSON.parse(saved));
       } catch {}
     }
+    const savedUploaded = localStorage.getItem("uploaded_movies");
+    if (savedUploaded) {
+      try {
+        setUploadedMovies(new Set(JSON.parse(savedUploaded)));
+      } catch {}
+    }
   }, []);
+
+  const markAsUploaded = (movieUrl: string) => {
+    const newUploaded = new Set(Array.from(uploadedMovies));
+    newUploaded.add(movieUrl);
+    setUploadedMovies(newUploaded);
+    localStorage.setItem("uploaded_movies", JSON.stringify(Array.from(newUploaded)));
+    toast({ title: "Marked as Uploaded", description: "Movie marked as uploaded" });
+  };
+
+  const unmarkAsUploaded = (movieUrl: string) => {
+    const newUploaded = new Set(Array.from(uploadedMovies));
+    newUploaded.delete(movieUrl);
+    setUploadedMovies(newUploaded);
+    localStorage.setItem("uploaded_movies", JSON.stringify(Array.from(newUploaded)));
+    toast({ title: "Unmarked", description: "Movie unmarked" });
+  };
 
   const moviesQuery = useQuery<MovieListResult>({
     queryKey: ["/api/movies"],
@@ -879,6 +910,31 @@ export default function Home() {
                   )}
                   Post to WordPress
                 </Button>
+                {selectedPost && (
+                  uploadedMovies.has(selectedPost.url) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => unmarkAsUploaded(selectedPost.url)}
+                      className="gap-2 bg-green-600 text-white hover:bg-green-700"
+                      data-testid="button-unmark-uploaded"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Uploaded
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => markAsUploaded(selectedPost.url)}
+                      className="gap-2"
+                      data-testid="button-mark-uploaded"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Mark as Uploaded
+                    </Button>
+                  )
+                )}
               </div>
             </div>
           )}
@@ -965,6 +1021,12 @@ export default function Home() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-muted">
                       <Film className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  {uploadedMovies.has(movie.url) && (
+                    <div className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 font-semibold">
+                      <CheckCircle className="w-3 h-3" />
+                      Uploaded
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
