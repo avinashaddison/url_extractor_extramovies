@@ -612,13 +612,27 @@ export default function Home() {
               </div>
 
               {/* Intro paragraph */}
-              <p className="text-sm">
-                Download <strong>{movieDetails.title}</strong> [{" "}
-                <strong>{movieDetails.language || "Hindi"}</strong>]{" "}
-                <strong>{movieDetails.quality || "480p | 720p | 1080p"}</strong> Dual Audio [x264/ESubs] | Full Movie, based on{" "}
-                <strong>{movieDetails.genre || "Drama"}</strong> and Available In{" "}
-                <strong>{(movieDetails.language || "Hindi").split("(")[0].trim()}</strong> available
-              </p>
+              <div className="flex items-start gap-2">
+                <p className="text-sm">
+                  Download <strong>{movieDetails.title}</strong> [{" "}
+                  <strong>{movieDetails.language || "Hindi"}</strong>]{" "}
+                  <strong>{movieDetails.quality || "480p | 720p | 1080p"}</strong> Dual Audio [x264/ESubs] | Full Movie, based on{" "}
+                  <strong>{movieDetails.genre || "Drama"}</strong> and Available In{" "}
+                  <strong>{(movieDetails.language || "Hindi").split("(")[0].trim()}</strong> available
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const intro = `Download ${movieDetails.title} [${movieDetails.language || "Hindi"}] ${movieDetails.quality || "480p | 720p | 1080p"} Dual Audio [x264/ESubs] | Full Movie, based on ${movieDetails.genre || "Drama"} and Available In ${(movieDetails.language || "Hindi").split("(")[0].trim()} available`;
+                    navigator.clipboard.writeText(intro);
+                    toast({ title: "Copied", description: "Intro paragraph copied" });
+                  }}
+                  data-testid="button-copy-intro"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
 
               {/* Poster */}
               {movieDetails.posterImage && (
