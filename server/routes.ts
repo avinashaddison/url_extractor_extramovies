@@ -1,10 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import type { MovieListResult, LinkFinderResult, MoviePost, MovieDetails, DownloadLink, WordPressPostRequest, WordPressPostResult } from "@shared/schema";
-import { wordpressSettingsSchema } from "@shared/schema";
-
-const BASE_URL = "https://moviesdrive.forum";
-const MDRIVE_PATTERN = "mdrive.today";
+import type { MovieListResult, LinkFinderResult, MoviePost, MovieDetails, DownloadLink, WordPressPostRequest, WordPressPostResult, DomainSettings } from "@shared/schema";
+import { wordpressSettingsSchema, domainSettingsSchema } from "@shared/schema";
+import { storage } from "./storage";
 
 const headers = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -12,11 +10,16 @@ const headers = {
   "Accept-Language": "en-US,en;q=0.5",
 };
 
-function extractMoviePosts(html: string): MoviePost[] {
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractMoviePosts(html: string, domain: string): MoviePost[] {
   const posts: MoviePost[] = [];
   const seen = new Set<string>();
+  const escapedDomain = escapeRegex(domain);
 
-  const posterPattern = /<a\s+href="(https:\/\/moviesdrive\.forum\/[^"]+)"[^>]*>\s*<div\s+class="poster-card"[^>]*>[\s\S]*?<img\s+src="([^"]*)"[^>]*>[\s\S]*?<p\s+class="poster-title">([^<]+)<\/p>[\s\S]*?<\/div>\s*<\/a>/gi;
+  const posterPattern = new RegExp(`<a\\s+href="(https:\\/\\/${escapedDomain}\\/[^"]+)"[^>]*>\\s*<div\\s+class="poster-card"[^>]*>[\\s\\S]*?<img\\s+src="([^"]*)"[^>]*>[\\s\\S]*?<p\\s+class="poster-title">([^<]+)<\\/p>[\\s\\S]*?<\\/div>\\s*<\\/a>`, 'gi');
   
   let match;
   while ((match = posterPattern.exec(html)) !== null) {
@@ -35,7 +38,7 @@ function extractMoviePosts(html: string): MoviePost[] {
   }
 
   if (posts.length === 0) {
-    const simplePattern = /href="(https:\/\/moviesdrive\.forum\/[^"]*\d{4}[^"]*)"[^>]*>[\s\S]*?<p\s+class="poster-title">([^<]+)<\/p>/gi;
+    const simplePattern = new RegExp(`href="(https:\\/\\/${escapedDomain}\\/[^"]*\\d{4}[^"]*)"[^>]*>[\\s\\S]*?<p\\s+class="poster-title">([^<]+)<\\/p>`, 'gi');
     while ((match = simplePattern.exec(html)) !== null) {
       const url = match[1];
       const title = match[2]
@@ -66,7 +69,7 @@ function decodeHtml(text: string): string {
     .trim();
 }
 
-function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
+function extractMovieDetails(html: string, sourceUrl: string): { details: MovieDetails; downloadLabels: string[] } {
   const details: MovieDetails = {
     title: '',
     screenshots: [],
@@ -156,8 +159,12 @@ function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
     }
   }
 
-  // Extract mdrive links - using href attribute pattern for reliability
-  const hrefRegex = /href="(https?:\/\/mdrive\.today[^"]+)"/gi;
+  return { details, downloadLabels };
+}
+
+function extractMdriveLinks(html: string, mdrivePattern: string, downloadLabels: string[]): DownloadLink[] {
+  const escapedPattern = escapeRegex(mdrivePattern);
+  const hrefRegex = new RegExp(`href="(https?:\\/\\/${escapedPattern}[^"]+)"`, 'gi');
   const allUrls: string[] = [];
   let urlMatch;
   while ((urlMatch = hrefRegex.exec(html)) !== null) {
@@ -165,28 +172,25 @@ function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
   }
   const uniqueLinks = Array.from(new Set(allUrls));
 
-  // Store mdrive links with labels (hubcloud links will be resolved separately)
+  const downloadLinks: DownloadLink[] = [];
   for (let i = 0; i < uniqueLinks.length; i++) {
-    const link: DownloadLink = {
+    downloadLinks.push({
       url: uniqueLinks[i],
       label: downloadLabels[i] || `Download Link ${i + 1}`,
-    };
-    details.downloadLinks.push(link);
+    });
   }
-
-  return details;
+  return downloadLinks;
 }
 
-// Fetch hubcloud.foo link from mdrive.today page
-async function fetchHubcloudLink(mdriveUrl: string): Promise<string | null> {
+async function fetchHubcloudLink(mdriveUrl: string, hubcloudDomain: string): Promise<string | null> {
   try {
     const response = await fetch(mdriveUrl, { headers, redirect: 'follow' });
     if (!response.ok) return null;
     
     const html = await response.text();
     
-    // Extract hubcloud.foo link
-    const hubcloudMatch = html.match(/href="(https?:\/\/hubcloud\.foo[^"]+)"/i);
+    const escapedDomain = escapeRegex(hubcloudDomain);
+    const hubcloudMatch = html.match(new RegExp(`href="(https?:\\/\\/${escapedDomain}[^"]+)"`, 'i'));
     if (hubcloudMatch) {
       return hubcloudMatch[1];
     }
@@ -198,21 +202,17 @@ async function fetchHubcloudLink(mdriveUrl: string): Promise<string | null> {
   }
 }
 
-// Resolve all mdrive links to hubcloud links
-async function resolveHubcloudLinks(downloadLinks: DownloadLink[]): Promise<DownloadLink[]> {
-  const resolvedLinks: DownloadLink[] = [];
-  
-  // Process links in parallel for speed
+async function resolveHubcloudLinks(downloadLinks: DownloadLink[], hubcloudDomain: string): Promise<DownloadLink[]> {
   const promises = downloadLinks.map(async (link) => {
-    const hubcloudUrl = await fetchHubcloudLink(link.url);
+    const hubcloudUrl = await fetchHubcloudLink(link.url, hubcloudDomain);
     return {
-      url: hubcloudUrl || link.url, // fallback to mdrive if hubcloud not found
+      url: hubcloudUrl || link.url,
       label: link.label,
     };
   });
   
   const results = await Promise.all(promises);
-  return results.filter(link => link.url.includes('hubcloud.foo'));
+  return results.filter(link => link.url.includes(hubcloudDomain));
 }
 
 function generateWordPressContent(details: MovieDetails): string {
@@ -301,10 +301,25 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  app.get("/api/domain-settings", (req, res) => {
+    res.json(storage.getDomainSettings());
+  });
+
+  app.patch("/api/domain-settings", (req, res) => {
+    const result = domainSettingsSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error.errors[0]?.message || "Invalid settings" });
+    }
+    storage.setDomainSettings(result.data);
+    res.json(storage.getDomainSettings());
+  });
+
   app.get("/api/movies", async (req, res) => {
     try {
+      const settings = storage.getDomainSettings();
+      const baseUrl = `https://${settings.moviesDriveDomain}`;
       const page = parseInt(req.query.page as string) || 1;
-      const url = page === 1 ? BASE_URL : `${BASE_URL}/page/${page}/`;
+      const url = page === 1 ? baseUrl : `${baseUrl}/page/${page}/`;
       
       const response = await fetch(url, { headers, redirect: 'follow' });
 
@@ -318,7 +333,7 @@ export async function registerRoutes(
       }
 
       const html = await response.text();
-      const posts = extractMoviePosts(html);
+      const posts = extractMoviePosts(html, settings.moviesDriveDomain);
 
       const result: MovieListResult = {
         posts,
@@ -339,6 +354,7 @@ export async function registerRoutes(
   app.post("/api/extract-links", async (req, res) => {
     const startTime = Date.now();
     const { url } = req.body;
+    const settings = storage.getDomainSettings();
 
     if (!url) {
       const result: LinkFinderResult = {
@@ -367,20 +383,19 @@ export async function registerRoutes(
 
       const html = await response.text();
       
-      // Extract full movie details
-      const movieDetails = extractMovieDetails(html, url);
+      const { details: movieDetails, downloadLabels } = extractMovieDetails(html, url);
       
-      // Resolve mdrive.today links to hubcloud.foo links
+      const mdriveLinks = extractMdriveLinks(html, settings.mdrivePattern, downloadLabels);
+      movieDetails.downloadLinks = mdriveLinks;
+      
       console.log(`Resolving ${movieDetails.downloadLinks.length} mdrive links to hubcloud...`);
-      const hubcloudLinks = await resolveHubcloudLinks(movieDetails.downloadLinks);
+      const hubcloudLinks = await resolveHubcloudLinks(movieDetails.downloadLinks, settings.hubcloudDomain);
       console.log(`Found ${hubcloudLinks.length} hubcloud links`);
       
-      // Update movie details with hubcloud links
       if (hubcloudLinks.length > 0) {
         movieDetails.downloadLinks = hubcloudLinks;
       }
       
-      // Also get simple list of links for backward compatibility
       const matchedLinks = movieDetails.downloadLinks.map(dl => dl.url);
 
       const result: LinkFinderResult = {

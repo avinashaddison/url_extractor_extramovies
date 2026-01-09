@@ -79,7 +79,9 @@ async function loadImage(url: string): Promise<HTMLImageElement> {
     img.src = url;
   });
 }
-import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, WordPressPostResult, MovieDetails } from "@shared/schema";
+import type { MovieListResult, LinkFinderResult, MoviePost, WordPressSettings, WordPressPostResult, MovieDetails, DomainSettings } from "@shared/schema";
+import { DEFAULT_DOMAIN_SETTINGS } from "@shared/schema";
+import { queryClient } from "@/lib/queryClient";
 
 function MovieSection({ 
   title, 
@@ -397,6 +399,7 @@ export default function Home() {
     wp2Enabled: false,
   });
   const [uploadedMovies, setUploadedMovies] = useState<Set<string>>(new Set());
+  const [domainSettings, setDomainSettings] = useState<DomainSettings>(DEFAULT_DOMAIN_SETTINGS);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -412,7 +415,27 @@ export default function Home() {
         setUploadedMovies(new Set(JSON.parse(savedUploaded)));
       } catch {}
     }
+    const savedDomains = localStorage.getItem("domain_settings");
+    if (savedDomains) {
+      try {
+        const parsed = JSON.parse(savedDomains);
+        setDomainSettings(parsed);
+        apiRequest("PATCH", "/api/domain-settings", parsed);
+      } catch {}
+    }
   }, []);
+
+  const updateDomainSettings = async (newSettings: DomainSettings) => {
+    setDomainSettings(newSettings);
+    localStorage.setItem("domain_settings", JSON.stringify(newSettings));
+    try {
+      await apiRequest("PATCH", "/api/domain-settings", newSettings);
+      queryClient.invalidateQueries({ queryKey: ["/api/movies"] });
+      toast({ title: "Domains Updated", description: "Settings saved and movies will refresh" });
+    } catch {
+      toast({ title: "Error", description: "Failed to save domain settings", variant: "destructive" });
+    }
+  };
 
   const markAsUploaded = (movieUrl: string) => {
     const newUploaded = new Set(Array.from(uploadedMovies));
@@ -947,6 +970,43 @@ export default function Home() {
             onClose={() => setShowSettings(false)}
           />
         )}
+
+        <div className="flex items-center gap-2 mb-4 p-3 bg-card rounded-md border border-border flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium mr-2">Domains:</span>
+          <Input
+            value={domainSettings.moviesDriveDomain}
+            onChange={(e) => setDomainSettings({ ...domainSettings, moviesDriveDomain: e.target.value })}
+            onBlur={() => updateDomainSettings(domainSettings)}
+            placeholder="moviesdrive.forum"
+            className="h-8 text-xs w-40"
+            data-testid="input-moviesdrive-domain"
+          />
+          <Input
+            value={domainSettings.hubcloudDomain}
+            onChange={(e) => setDomainSettings({ ...domainSettings, hubcloudDomain: e.target.value })}
+            onBlur={() => updateDomainSettings(domainSettings)}
+            placeholder="hubcloud.foo"
+            className="h-8 text-xs w-32"
+            data-testid="input-hubcloud-domain"
+          />
+          <Input
+            value={domainSettings.mdrivePattern}
+            onChange={(e) => setDomainSettings({ ...domainSettings, mdrivePattern: e.target.value })}
+            onBlur={() => updateDomainSettings(domainSettings)}
+            placeholder="mdrive.today"
+            className="h-8 text-xs w-32"
+            data-testid="input-mdrive-pattern"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => updateDomainSettings(domainSettings)}
+            className="h-8 text-xs"
+            data-testid="button-save-domains"
+          >
+            Save
+          </Button>
+        </div>
 
         <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-3">

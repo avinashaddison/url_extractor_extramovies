@@ -1,5 +1,19 @@
 import { z } from "zod";
 
+export const domainSettingsSchema = z.object({
+  moviesDriveDomain: z.string().min(1, "MoviesDrive domain is required"),
+  hubcloudDomain: z.string().min(1, "HubCloud domain is required"),
+  mdrivePattern: z.string().min(1, "mdrive pattern is required"),
+});
+
+export type DomainSettings = z.infer<typeof domainSettingsSchema>;
+
+export const DEFAULT_DOMAIN_SETTINGS: DomainSettings = {
+  moviesDriveDomain: "moviesdrive.forum",
+  hubcloudDomain: "hubcloud.foo",
+  mdrivePattern: "mdrive.today",
+};
+
 export interface MoviePost {
   title: string;
   url: string;
