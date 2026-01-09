@@ -604,12 +604,39 @@ export default function Home() {
 
               {/* Poster */}
               {movieDetails.posterImage && (
-                <div className="text-center py-4">
+                <div className="text-center py-4 space-y-3">
                   <img
                     src={movieDetails.posterImage}
                     alt={movieDetails.title}
                     className="max-w-[280px] mx-auto rounded border border-border"
                   />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(movieDetails.posterImage!);
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${movieDetails.title.replace(/[^a-zA-Z0-9]/g, '_')}_poster.jpg`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        toast({ title: "Downloaded", description: "Poster image downloaded" });
+                      } catch (error) {
+                        window.open(movieDetails.posterImage, '_blank');
+                        toast({ title: "Opened", description: "Image opened in new tab for download" });
+                      }
+                    }}
+                    className="gap-2"
+                    data-testid="button-download-poster"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Poster
+                  </Button>
                 </div>
               )}
 
