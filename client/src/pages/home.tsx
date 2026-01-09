@@ -662,7 +662,7 @@ export default function Home() {
               {/* Screenshots */}
               {movieDetails.screenshots.length > 0 && (
                 <>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-xl font-bold">Screenshots: (Must See Before Downloading)</h2>
                     <Button
                       size="sm"
@@ -676,33 +676,36 @@ export default function Home() {
                     >
                       <Copy className="w-4 h-4" />
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const screenshots = movieDetails.screenshots.slice(0, 8);
+                        if (screenshots.length > 0) {
+                          const success = await copyImageToClipboard(screenshots[0]);
+                          if (success) {
+                            toast({ title: "Copied", description: "First screenshot image copied (browsers only allow 1 image at a time)" });
+                          } else {
+                            navigator.clipboard.writeText(screenshots.join("\n"));
+                            toast({ title: "Copied URLs", description: "Image copy failed, URLs copied instead" });
+                          }
+                        }
+                      }}
+                      className="gap-1"
+                      data-testid="button-copy-screenshot-image"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Copy Image
+                    </Button>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {movieDetails.screenshots.slice(0, 8).map((ss, index) => (
-                      <div key={index} className="text-center space-y-2">
+                      <div key={index} className="text-center">
                         <img
                           src={ss}
                           alt={`Screenshot ${index + 1}`}
                           className="max-w-full mx-auto border border-border"
                         />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            const success = await copyImageToClipboard(ss);
-                            if (success) {
-                              toast({ title: "Copied", description: `Screenshot ${index + 1} copied to clipboard` });
-                            } else {
-                              navigator.clipboard.writeText(ss);
-                              toast({ title: "Copied URL", description: "Image copy failed, URL copied instead" });
-                            }
-                          }}
-                          className="gap-2"
-                          data-testid={`button-copy-image-${index}`}
-                        >
-                          <ImageIcon className="w-4 h-4" />
-                          Copy Image
-                        </Button>
                       </div>
                     ))}
                   </div>
