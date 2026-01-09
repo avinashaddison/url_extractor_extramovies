@@ -165,7 +165,7 @@ function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
   }
   const uniqueLinks = Array.from(new Set(allUrls));
 
-  // Match labels with links (they typically appear in order)
+  // Store mdrive links with labels (hubcloud links will be resolved separately)
   for (let i = 0; i < uniqueLinks.length; i++) {
     const link: DownloadLink = {
       url: uniqueLinks[i],
@@ -175,6 +175,44 @@ function extractMovieDetails(html: string, sourceUrl: string): MovieDetails {
   }
 
   return details;
+}
+
+// Fetch hubcloud.foo link from mdrive.today page
+async function fetchHubcloudLink(mdriveUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(mdriveUrl, { headers, redirect: 'follow' });
+    if (!response.ok) return null;
+    
+    const html = await response.text();
+    
+    // Extract hubcloud.foo link
+    const hubcloudMatch = html.match(/href="(https?:\/\/hubcloud\.foo[^"]+)"/i);
+    if (hubcloudMatch) {
+      return hubcloudMatch[1];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`Error fetching hubcloud from ${mdriveUrl}:`, error);
+    return null;
+  }
+}
+
+// Resolve all mdrive links to hubcloud links
+async function resolveHubcloudLinks(downloadLinks: DownloadLink[]): Promise<DownloadLink[]> {
+  const resolvedLinks: DownloadLink[] = [];
+  
+  // Process links in parallel for speed
+  const promises = downloadLinks.map(async (link) => {
+    const hubcloudUrl = await fetchHubcloudLink(link.url);
+    return {
+      url: hubcloudUrl || link.url, // fallback to mdrive if hubcloud not found
+      label: link.label,
+    };
+  });
+  
+  const results = await Promise.all(promises);
+  return results.filter(link => link.url.includes('hubcloud.foo'));
 }
 
 function generateWordPressContent(details: MovieDetails): string {
@@ -331,6 +369,16 @@ export async function registerRoutes(
       
       // Extract full movie details
       const movieDetails = extractMovieDetails(html, url);
+      
+      // Resolve mdrive.today links to hubcloud.foo links
+      console.log(`Resolving ${movieDetails.downloadLinks.length} mdrive links to hubcloud...`);
+      const hubcloudLinks = await resolveHubcloudLinks(movieDetails.downloadLinks);
+      console.log(`Found ${hubcloudLinks.length} hubcloud links`);
+      
+      // Update movie details with hubcloud links
+      if (hubcloudLinks.length > 0) {
+        movieDetails.downloadLinks = hubcloudLinks;
+      }
       
       // Also get simple list of links for backward compatibility
       const matchedLinks = movieDetails.downloadLinks.map(dl => dl.url);
