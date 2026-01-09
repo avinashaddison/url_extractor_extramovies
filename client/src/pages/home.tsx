@@ -82,13 +82,19 @@ function MovieSection({
   );
 }
 
+interface DualWordPressSettings {
+  wp1: WordPressSettings;
+  wp2: WordPressSettings;
+  wp2Enabled: boolean;
+}
+
 function WordPressSettingsPanel({ 
   settings, 
   onSettingsChange,
   onClose 
 }: { 
-  settings: WordPressSettings;
-  onSettingsChange: (settings: WordPressSettings) => void;
+  settings: DualWordPressSettings;
+  onSettingsChange: (settings: DualWordPressSettings) => void;
   onClose: () => void;
 }) {
   const [localSettings, setLocalSettings] = useState(settings);
@@ -109,7 +115,7 @@ function WordPressSettingsPanel({
   });
 
   const handleSave = () => {
-    localStorage.setItem("wp_settings", JSON.stringify(localSettings));
+    localStorage.setItem("wp_dual_settings", JSON.stringify(localSettings));
     onSettingsChange(localSettings);
     toast({ title: "Saved", description: "WordPress settings saved" });
     onClose();
@@ -125,52 +131,118 @@ function WordPressSettingsPanel({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Site URL</label>
-          <Input
-            placeholder="https://yoursite.com"
-            value={localSettings.siteUrl}
-            onChange={(e) => setLocalSettings({ ...localSettings, siteUrl: e.target.value })}
-            data-testid="input-wp-url"
-          />
+      <CardContent className="space-y-6">
+        {/* WordPress Site 1 */}
+        <div className="space-y-4">
+          <h3 className="font-medium text-primary">Site 1 (Primary)</h3>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Site URL</label>
+            <Input
+              placeholder="https://yoursite1.com"
+              value={localSettings.wp1.siteUrl}
+              onChange={(e) => setLocalSettings({ ...localSettings, wp1: { ...localSettings.wp1, siteUrl: e.target.value } })}
+              data-testid="input-wp1-url"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Username</label>
+            <Input
+              placeholder="admin"
+              value={localSettings.wp1.username}
+              onChange={(e) => setLocalSettings({ ...localSettings, wp1: { ...localSettings.wp1, username: e.target.value } })}
+              data-testid="input-wp1-username"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Application Password</label>
+            <Input
+              type="password"
+              placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+              value={localSettings.wp1.appPassword}
+              onChange={(e) => setLocalSettings({ ...localSettings, wp1: { ...localSettings.wp1, appPassword: e.target.value } })}
+              data-testid="input-wp1-password"
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => testConnectionMutation.mutate(localSettings.wp1)}
+            disabled={testConnectionMutation.isPending}
+            data-testid="button-test-wp1"
+          >
+            {testConnectionMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Test Site 1
+          </Button>
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Username</label>
-          <Input
-            placeholder="admin"
-            value={localSettings.username}
-            onChange={(e) => setLocalSettings({ ...localSettings, username: e.target.value })}
-            data-testid="input-wp-username"
-          />
+
+        <hr className="border-border" />
+
+        {/* WordPress Site 2 */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <h3 className="font-medium text-primary">Site 2 (Optional)</h3>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={localSettings.wp2Enabled}
+                onChange={(e) => setLocalSettings({ ...localSettings, wp2Enabled: e.target.checked })}
+                className="rounded"
+                data-testid="checkbox-wp2-enabled"
+              />
+              Enable
+            </label>
+          </div>
+          {localSettings.wp2Enabled && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Site URL</label>
+                <Input
+                  placeholder="https://yoursite2.com"
+                  value={localSettings.wp2.siteUrl}
+                  onChange={(e) => setLocalSettings({ ...localSettings, wp2: { ...localSettings.wp2, siteUrl: e.target.value } })}
+                  data-testid="input-wp2-url"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Username</label>
+                <Input
+                  placeholder="admin"
+                  value={localSettings.wp2.username}
+                  onChange={(e) => setLocalSettings({ ...localSettings, wp2: { ...localSettings.wp2, username: e.target.value } })}
+                  data-testid="input-wp2-username"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Application Password</label>
+                <Input
+                  type="password"
+                  placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                  value={localSettings.wp2.appPassword}
+                  onChange={(e) => setLocalSettings({ ...localSettings, wp2: { ...localSettings.wp2, appPassword: e.target.value } })}
+                  data-testid="input-wp2-password"
+                />
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => testConnectionMutation.mutate(localSettings.wp2)}
+                disabled={testConnectionMutation.isPending}
+                data-testid="button-test-wp2"
+              >
+                {testConnectionMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Test Site 2
+              </Button>
+            </>
+          )}
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Application Password</label>
-          <Input
-            type="password"
-            placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
-            value={localSettings.appPassword}
-            onChange={(e) => setLocalSettings({ ...localSettings, appPassword: e.target.value })}
-            data-testid="input-wp-password"
-          />
-          <p className="text-xs text-muted-foreground">
-            Create this in WordPress: Users → Profile → Application Passwords
-          </p>
-        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Create application passwords in WordPress: Users → Profile → Application Passwords
+        </p>
+
         <div className="flex items-center gap-2 pt-2">
           <Button onClick={handleSave} data-testid="button-save-wp">
             Save Settings
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => testConnectionMutation.mutate(localSettings)}
-            disabled={testConnectionMutation.isPending}
-            data-testid="button-test-wp"
-          >
-            {testConnectionMutation.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : null}
-            Test Connection
           </Button>
         </div>
       </CardContent>
@@ -257,15 +329,15 @@ function MovieDetailsCard({ details }: { details: MovieDetails }) {
 export default function Home() {
   const [selectedPost, setSelectedPost] = useState<MoviePost | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [wpSettings, setWpSettings] = useState<WordPressSettings>({
-    siteUrl: "",
-    username: "",
-    appPassword: "",
+  const [wpSettings, setWpSettings] = useState<DualWordPressSettings>({
+    wp1: { siteUrl: "", username: "", appPassword: "" },
+    wp2: { siteUrl: "", username: "", appPassword: "" },
+    wp2Enabled: false,
   });
   const { toast } = useToast();
 
   useEffect(() => {
-    const saved = localStorage.getItem("wp_settings");
+    const saved = localStorage.getItem("wp_dual_settings");
     if (saved) {
       try {
         setWpSettings(JSON.parse(saved));
@@ -293,22 +365,42 @@ export default function Home() {
 
   const postToWordPressMutation = useMutation({
     mutationFn: async (movieDetails: MovieDetails) => {
-      const response = await apiRequest("POST", "/api/wordpress/post", {
+      const results: { site: string; result: WordPressPostResult }[] = [];
+      
+      // Post to Site 1
+      const response1 = await apiRequest("POST", "/api/wordpress/post", {
         movieDetails,
-        settings: wpSettings,
+        settings: wpSettings.wp1,
       });
-      return response.json() as Promise<WordPressPostResult>;
+      const result1 = await response1.json() as WordPressPostResult;
+      results.push({ site: "Site 1", result: result1 });
+      
+      // Post to Site 2 if enabled
+      if (wpSettings.wp2Enabled && wpSettings.wp2.siteUrl) {
+        const response2 = await apiRequest("POST", "/api/wordpress/post", {
+          movieDetails,
+          settings: wpSettings.wp2,
+        });
+        const result2 = await response2.json() as WordPressPostResult;
+        results.push({ site: "Site 2", result: result2 });
+      }
+      
+      return results;
     },
-    onSuccess: (data) => {
-      if (data.success) {
+    onSuccess: (results) => {
+      const successes = results.filter(r => r.result.success);
+      const failures = results.filter(r => !r.result.success);
+      
+      if (successes.length > 0) {
         toast({
           title: "Posted to WordPress",
-          description: `Draft created! Post ID: ${data.postId}`,
+          description: successes.map(s => `${s.site}: Post ID ${s.result.postId}`).join(", "),
         });
-      } else {
+      }
+      if (failures.length > 0) {
         toast({
-          title: "Failed to post",
-          description: data.error,
+          title: "Some posts failed",
+          description: failures.map(f => `${f.site}: ${f.result.error}`).join(", "),
           variant: "destructive",
         });
       }
@@ -358,7 +450,7 @@ export default function Home() {
     const movieDetails = extractLinksMutation.data?.movieDetails;
     if (!movieDetails) return;
 
-    if (!wpSettings.siteUrl || !wpSettings.username || !wpSettings.appPassword) {
+    if (!wpSettings.wp1.siteUrl || !wpSettings.wp1.username || !wpSettings.wp1.appPassword) {
       toast({
         title: "WordPress not configured",
         description: "Please configure your WordPress settings first",
@@ -404,7 +496,7 @@ export default function Home() {
     ? categorizeMovies(moviesQuery.data.posts) 
     : { latest: [], bollywood: [], hollywood: [], series: [], other: [] };
 
-  const hasWpSettings = wpSettings.siteUrl && wpSettings.username && wpSettings.appPassword;
+  const hasWpSettings = wpSettings.wp1.siteUrl && wpSettings.wp1.username && wpSettings.wp1.appPassword;
   const movieDetails = extractLinksMutation.data?.movieDetails;
 
   if (selectedPost) {
@@ -591,7 +683,7 @@ export default function Home() {
                 >
                   {postToWordPressMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : postToWordPressMutation.data?.success ? (
+                  ) : postToWordPressMutation.data?.some(r => r.result.success) ? (
                     <CheckCircle className="w-4 h-4" />
                   ) : (
                     <Send className="w-4 h-4" />
