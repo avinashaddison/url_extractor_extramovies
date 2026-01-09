@@ -132,9 +132,9 @@ function WordPressSettingsPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* WordPress Site 1 */}
+        {/* WordPress Site 1 - MoviesDrive */}
         <div className="space-y-4">
-          <h3 className="font-medium text-primary">Site 1 (Primary)</h3>
+          <h3 className="font-medium text-primary">MoviesDrive</h3>
           <div className="space-y-2">
             <label className="text-sm font-medium">Site URL</label>
             <Input
@@ -171,16 +171,16 @@ function WordPressSettingsPanel({
             data-testid="button-test-wp1"
           >
             {testConnectionMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Test Site 1
+            Test MoviesDrive
           </Button>
         </div>
 
         <hr className="border-border" />
 
-        {/* WordPress Site 2 */}
+        {/* WordPress Site 2 - ExtraMovies */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <h3 className="font-medium text-primary">Site 2 (Optional)</h3>
+            <h3 className="font-medium text-primary">ExtraMovies</h3>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -230,7 +230,7 @@ function WordPressSettingsPanel({
                 data-testid="button-test-wp2"
               >
                 {testConnectionMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Test Site 2
+                Test ExtraMovies
               </Button>
             </>
           )}
@@ -367,22 +367,22 @@ export default function Home() {
     mutationFn: async (movieDetails: MovieDetails) => {
       const results: { site: string; result: WordPressPostResult }[] = [];
       
-      // Post to Site 1
+      // Post to MoviesDrive
       const response1 = await apiRequest("POST", "/api/wordpress/post", {
         movieDetails,
         settings: wpSettings.wp1,
       });
       const result1 = await response1.json() as WordPressPostResult;
-      results.push({ site: "Site 1", result: result1 });
+      results.push({ site: "MoviesDrive", result: result1 });
       
-      // Post to Site 2 if enabled
+      // Post to ExtraMovies if enabled
       if (wpSettings.wp2Enabled && wpSettings.wp2.siteUrl) {
         const response2 = await apiRequest("POST", "/api/wordpress/post", {
           movieDetails,
           settings: wpSettings.wp2,
         });
         const result2 = await response2.json() as WordPressPostResult;
-        results.push({ site: "Site 2", result: result2 });
+        results.push({ site: "ExtraMovies", result: result2 });
       }
       
       return results;
